@@ -1,4 +1,4 @@
-# 🍏 Cal AI — Smart Nutrition Tracker
+# Lumina-Cal— Smart Nutrition Tracker
 
 An AI-powered nutrition tracking Telegram Bot & Mini App that makes calorie logging effortless.
 
