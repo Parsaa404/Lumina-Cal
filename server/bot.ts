@@ -5,20 +5,39 @@ import { handleText } from './handlers/textHandler';
 import { handleOnboardingCallback } from './handlers/onboardingHandler';
 import { handleWeekly, handleStreak } from './handlers/weeklyHandler';
 import { handleMealConfirmCallback } from './handlers/mealConfirmHandler';
+import { handleWater, handleWaterCallback } from './handlers/hydrationHandler';
+import { handleWeight } from './handlers/weightHandler';
+import { handleGroceries, handlePlan } from './handlers/planningHandler';
+import { handleExport } from './handlers/exportHandler';
+import { handleActivity } from './handlers/activityHandler';
+import { handleHistory } from './handlers/historyHandler';
+import { handleAsk } from './handlers/askHandler';
 
 export function setupBot(token: string): Bot {
   const bot = new Bot(token);
 
-  // Commands
-  bot.command('start', handleStart);
-  bot.command('weekly', handleWeekly);
-  bot.command('streak', handleStreak);
+  // ── Commands ──────────────────────────────────────────────
+  bot.command('start',     handleStart);
+  bot.command('weekly',    handleWeekly);
+  bot.command('streak',    handleStreak);
+  bot.command('water',     handleWater);
+  bot.command('weight',    handleWeight);
+  bot.command('groceries', handleGroceries);
+  bot.command('plan',      handlePlan);
+  bot.command('export',    handleExport);
+  bot.command('activity',  handleActivity);
+  bot.command('history',   handleHistory);
+  bot.command('ask',       handleAsk);
 
-  // Inline button callbacks
+  // ── Inline Callbacks ──────────────────────────────────────
   bot.on('callback_query:data', async (ctx) => {
     const data = ctx.callbackQuery.data;
 
-    // Meal flow: clarification skip, confirm, discard
+    if (data.startsWith('water_add_')) {
+      await handleWaterCallback(ctx);
+      return;
+    }
+
     if (
       data.startsWith('skip_clarify_') ||
       data.startsWith('confirm_meal_') ||
@@ -28,15 +47,14 @@ export function setupBot(token: string): Bot {
       return;
     }
 
-    // Onboarding buttons
     await handleOnboardingCallback(ctx);
   });
 
-  // Message handlers
+  // ── Message Handlers ──────────────────────────────────────
   bot.on('message:photo', handlePhoto);
-  bot.on('message:text', handleText);
+  bot.on('message:text',  handleText);
 
-  // Error handling
+  // ── Error Handler ─────────────────────────────────────────
   bot.catch((err) => {
     const ctx = err.ctx;
     console.error(`Error while handling update ${ctx.update.update_id}:`);

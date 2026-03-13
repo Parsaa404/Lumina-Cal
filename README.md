@@ -1,99 +1,99 @@
-# Lumina-Cal— Smart Nutrition Tracker
+# Lumina-Cal — AI Nutrition Coach
 
-An AI-powered nutrition tracking Telegram Bot & Mini App that makes calorie logging effortless.
+An advanced AI-powered nutrition tracking Telegram Bot & Mini App — not just a tracker, a full adaptive AI coach.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-19-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC)
-![Gemini](https://img.shields.io/badge/Google_Gemini-AI-orange)
-
-Send a photo of your food or describe what you ate — AI analyzes everything, scores your meal, and gives you smart nutrition advice. Track your progress in a beautiful dashboard.
+![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-orange)
 
 ---
 
-## ✨ Core Features
+## ✨ Feature Overview
 
-### 🤖 Smart Meal Analysis
-- **📸 Interactive Photo Flow** — Send a photo. The bot:
-  1. Detects all food items with initial portion estimates
-  2. Lists each item and asks: cooking method, seasonings/sauces added, exact portion sizes
-  3. Re-analyzes the same image with your corrections for much higher accuracy
-  4. Shows the final result with ✅ Log / ❌ Discard buttons
-- **🔍 Plate Segmentation** — Each item detected separately (e.g., "Grilled chicken 150g — 230 kcal")
-- **✍️ Text Logging** — Type what you ate. AI parses it, checks cache, and shows a preview before logging.
-- **⚡ Food Cache** — Repeated foods served instantly from cache (chicken, rice, eggs, etc.)
-- **📊 Clean Nutrition Display** — Macros shown as an aligned table: Calories / Protein / Carbs / Fats — no emojis, clean and readable
+### 📸 Interactive Photo Analysis
+- Bot detects all food items, then asks: cooking method, seasonings, and exact portions
+- Re-analyzes image with your corrections (fried vs. grilled = up to 50% calorie difference)
+- Plate segmentation — each item listed with individual portion & calories
+- Confirm-to-Log: ✅ Log / ❌ Discard before anything is saved
 
-### ⭐ Meal Score System
-Every meal gets an AI-powered quality score (1-10) with:
-- ✅ **Pros** — What's nutritionally good about the meal
-- ⚠️ **Cons** — Areas for improvement
-- 💡 **Smart Feedback** — Specific food swap suggestions (e.g., *"Replace white rice with brown rice for extra fiber"*)
+### 🔍 Smart Text Logging
+- **3-tier lookup**: Fast food database → Cache → AI analysis
+- **Fast Food Database** — 50+ items from McDonald's, KFC, Subway, Starbucks, Burger King, Pizza Hut, Domino's — exact nutrition data, no AI guessing
+- **Food Cache** — repeated foods returned instantly (24h TTL)
+- **AI Food Substitution** — type *"alternative to Big Mac"* → healthier swaps with calorie comparison
+- **AI Q&A Mode** — type any nutrition question → personalized AI answer
 
-### ✅ Confirm-to-Log
-Meals aren't logged automatically. After analysis, you see a preview with:
-- Full nutrition breakdown
-- Meal score and AI feedback
-- **✅ Log Meal** or **❌ Discard** buttons
+### ⭐ Meal Score + Daily Score
+- Every meal rated 1-10 with pros, cons, and food swap tips
+- **Smart Daily Score** (0-10, grade A–F) based on: calories, protein, sugar, fiber, consistency
+- Visual score breakdown with progress bars
+
+### 🏃 Activity & Calorie Balance (`/activity`)
+```
+/activity run 30
+→ Run 30min: 280 kcal burned
+
+Daily Balance:
+  Eaten:   2100 kcal
+  Burned:   420 kcal
+  Net:     1680 kcal
+```
+Supports 25+ exercise types: run, gym, hiit, swim, bike, yoga, crossfit, football...
+
+### 🧠 Metabolic Adaptation (`/weight`)
+```
+/weight 82.5
+→ -0.3kg vs last week → On track!
+→ 🎯 Stay the course — great progress!
+```
+Weekly weight check-in with AI analysis of progress rate vs goal, suggests calorie/carb adjustments.
+
+### 💧 Hydration Tracking (`/water`)
+- Quick-add buttons: 250ml / 500ml / 750ml / 1L / 1.5L
+- Visual progress bar toward 2.5L daily goal
+
+### 🛒 Smart Grocery List (`/groceries`)
+- AI builds a personalized shopping list from your last 7 days of meals
+- Grouped by: Proteins, Vegetables, Grains, Dairy, Fruits, Pantry
+
+### 📅 Weekly Meal Planner (`/plan`)
+- AI generates a full 7-day meal plan calibrated to your exact macro targets
+- Practical meals with per-meal calories and protein shown
+
+### 📊 Food History Intelligence (`/history`)
+- Top foods by frequency
+- Most calorie-dense foods
+- Top sugar sources
+- Best protein sources
+- Meal timing analysis (late-night eating detection)
+
+### 🧬 Micronutrients & Fiber
+- Fiber, sugar, and sodium tracked and displayed per meal
+- Fiber shown in daily nutrition table (target 25-30g)
+- Sugar warnings when daily total exceeds 35g
+
+### 📤 CSV Export (`/export`)
+- Full meal history as `.csv` (Date, Time, Description, all macros, Fiber, Sodium, Score, Cuisine)
+- Import into Excel, Google Sheets
+
+### 🔥 Gamification (`/streak`)
+- 🏅3d → 🏆7d → 💎14d → 👑30d → 🦾60d → 🌟100d
 
 ### 🎯 5 Fitness Goals
-During onboarding, choose your goal — all recommendations adapt accordingly:
-| Goal | Strategy |
-|------|----------|
-| 💪 Muscle Gain | Caloric surplus, high protein |
-| 🔥 Fat Loss | 20-25% deficit, very high protein |
-| ⚖️ Maintain Weight | Maintenance calories, balanced macros |
-| 💪 Recomposition | Slight deficit, maximum protein |
-| 🥗 Healthy Lifestyle | Slight deficit, nutrient-dense focus |
+Muscle Gain · Fat Loss · Maintain · Recomposition · Healthy Lifestyle
 
-### 📊 Body Profile
-Automated onboarding collects gender, height, weight, and date of birth to calculate:
-- **BMI** with category labels (Underweight / Normal / Overweight / Obese)
-- **Body Fat %** using the Deurenberg formula with gender-specific categories
-- **AI-generated daily targets** (calories, protein, carbs, fats) personalized to your body and goal
-
-### ⚠️ Smart Warnings
-Real-time alerts when you exceed limits:
-- 🔴 **Over calorie limit** — with action items (drink water, walk, skip snacks)
-- 🍬 **High sugar (>35g)** — with specific swap suggestions
-- 🥩 **Low protein** — alerts when protein falls behind calorie consumption
-- Per-macro red alerts at 120%+ threshold
-
-### 🔥 Gamification & Streaks
-- Daily logging streak counter
-- Achievement unlocks:
-  - 🏅 3 days — Getting Started
-  - 🏆 7 days — Week Champion
-  - 💎 14 days — Two-Week Legend
-  - 👑 30 days — Monthly Master
-  - 🦾 60 days — Iron Will
-  - 🌟 100 days — Centurion
-
-### 📊 Weekly Reports (`/weekly`)
-AI-generated 7-day summary including:
-- Average daily macros
-- Total meals & days tracked
-- Average meal quality score
-- Current streak
-- Personalized AI insight with improvement suggestions
+### 🧬 Body Profile (Onboarding)
+BMI + Body Fat % from gender, height, weight, and date of birth → AI-generates personalized daily macro targets
 
 ---
 
-## 📱 Dashboard (Mini App)
-
-A modern, responsive dashboard inside Telegram:
-
-- **Body Profile Card** — BMI & Body Fat % with visual bars and category badges
-- **Fitness Goal Tag** — Your selected goal displayed prominently
-- **Streak Badge** — 🔥 counter in the header
-- **Calorie Progress** — Animated progress bar with red highlight when over limit
-- **Macro Tracking** — Protein/Carbs/Fats progress bars with red alerts
-- **Meal Score Badges** — Color-coded score on each meal card (green/amber/red)
-- **AI Feedback** — Smart tips shown under each meal card
-- **Sugar Warning Banner** — Amber alert when sugar exceeds daily limit
-- **Over-Limit Banner** — Red alert with actionable advice
-- **AI Insight** — Goal-aware daily suggestion engine
+## 📱 Mini App Dashboard
+- BMI + Body Fat % card · Streak badge · Animated calorie progress bar
+- Per-macro progress bars with red over-limit alerts
+- Meal score badges (green/amber/red) · AI feedback per meal · Daily score widget
+- Sugar warning · Over-limit banner · Goal-aware AI insight
 
 ---
 
@@ -103,91 +103,62 @@ A modern, responsive dashboard inside Telegram:
 |-------|-----------|
 | Frontend | React 19, Vite, Tailwind CSS v4, Zustand, Framer Motion |
 | Backend | Node.js, Express, Grammy.js |
-| AI | Google Gemini 2.5 Flash (text), Gemini 2.5 Flash (vision) |
+| AI | Google Gemini 2.5 Flash |
 | Database | Supabase (PostgreSQL) |
-| Caching | In-memory food cache (24h TTL, upgradeable to Redis/Upstash) |
-| Language | TypeScript throughout |
+| Fast Food DB | Built-in (50+ items, upgradeable to USDA/OpenFoodFacts) |
+| Food Cache | In-memory 24h TTL → upgradeable to Redis/Upstash |
+| Language | TypeScript |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Setup
 
 ### Prerequisites
-- Node.js v18+
-- Telegram account
-- [Supabase](https://supabase.com/) account (free tier)
+- Node.js v18+ · Telegram account
+- [Supabase](https://supabase.com/) free tier
 - [Google AI Studio](https://aistudio.google.com/) API key
 
-### 1. Bot Setup
-1. Open Telegram → [@BotFather](https://t.me/botfather)
-2. `/newbot` → follow instructions → save the **API Token**
-3. `/setmenubutton` → set your Mini App URL
+### 1. Create Bot
+1. Message [@BotFather](https://t.me/botfather) → `/newbot` → save token
+2. `/setmenubutton` → set your Mini App URL
 
 ### 2. Environment Variables
-```bash
-cp .env.example .env
+```env
+TELEGRAM_BOT_TOKEN=...
+APP_URL=https://your-app-url
+GEMINI_API_KEY=...
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | From BotFather |
-| `APP_URL` | Your Mini App URL |
-| `GEMINI_API_KEY` | From Google AI Studio |
-| `SUPABASE_URL` | From Supabase dashboard |
-| `SUPABASE_ANON_KEY` | From Supabase dashboard |
-
-### 3. Database Setup
-Run this SQL in the **Supabase SQL Editor**:
-
+### 3. Database (Supabase SQL Editor)
 ```sql
--- Users table
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   "telegramId" BIGINT UNIQUE NOT NULL,
-  "firstName" TEXT NOT NULL,
-  "lastName" TEXT,
-  username TEXT,
-  gender TEXT,
-  height REAL,
-  weight REAL,
-  age INTEGER,
-  bmi REAL,
-  pbf REAL,
-  "fitnessGoal" TEXT,
-  streak INTEGER DEFAULT 0,
-  "lastLogDate" TEXT,
-  "targetWeight" REAL,
-  "dailyCalorieGoal" REAL,
-  "dailyProteinGoal" REAL,
-  "dailyCarbsGoal" REAL,
-  "dailyFatsGoal" REAL,
-  "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-  "updatedAt" TIMESTAMPTZ DEFAULT NOW()
+  "firstName" TEXT NOT NULL, "lastName" TEXT, username TEXT,
+  gender TEXT, height REAL, weight REAL, age INTEGER,
+  bmi REAL, pbf REAL, "fitnessGoal" TEXT,
+  streak INTEGER DEFAULT 0, "lastLogDate" TEXT, "targetWeight" REAL,
+  "dailyCalorieGoal" REAL, "dailyProteinGoal" REAL,
+  "dailyCarbsGoal" REAL, "dailyFatsGoal" REAL,
+  "createdAt" TIMESTAMPTZ DEFAULT NOW(), "updatedAt" TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Meals table
 CREATE TABLE IF NOT EXISTS public.meals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   "userId" UUID REFERENCES public.users(id),
-  "telegramMessageId" BIGINT,
-  description TEXT NOT NULL,
-  "photoUrl" TEXT,
-  nutrition JSONB NOT NULL,
-  "mealScore" JSONB,
-  "aiFeedback" TEXT,
-  "loggedAt" TIMESTAMPTZ DEFAULT NOW(),
-  "cuisineType" TEXT,
-  "confidenceScore" REAL
+  "telegramMessageId" BIGINT, description TEXT NOT NULL, "photoUrl" TEXT,
+  nutrition JSONB NOT NULL, "mealScore" JSONB, "aiFeedback" TEXT,
+  "loggedAt" TIMESTAMPTZ DEFAULT NOW(), "cuisineType" TEXT, "confidenceScore" REAL
 );
 ```
 
-### 4. Install & Run
+### 4. Run
 ```bash
 npm install
 npm run dev
 ```
-
-> **Tip**: Use [ngrok](https://ngrok.com/) to expose your local server for Telegram Mini App testing.
 
 ---
 
@@ -195,49 +166,65 @@ npm run dev
 
 | Command | Description |
 |---------|-------------|
-| `/start` | Register + full onboarding (gender, height, weight, DOB, fitness goal) |
-| `/weekly` | AI-powered 7-day nutrition report |
-| `/streak` | View your logging streak and achievements |
+| `/start` | Onboarding → BMI/PBF calculation → AI nutrition targets |
+| `/activity run 30` | Log exercise → calories burned + net daily balance |
+| `/weight 82.5` | Weekly weight check-in → metabolic adaptation suggestion |
+| `/water` | Hydration tracker with quick-add buttons |
+| `/ask Is keto healthy?` | AI nutrition Q&A with personalized answers |
+| `/history` | Food history: top foods, sugar sources, timing analysis |
+| `/groceries` | AI grocery list from your recent meals |
+| `/plan` | AI 7-day personalized meal plan |
+| `/weekly` | 7-day report + AI coach insight |
+| `/streak` | Streak counter + achievement badges |
+| `/export` | Download all meals as CSV |
 
-### Meal Logging
-- Send a **photo** → AI analyzes → preview with ✅ Log / ❌ Discard buttons
-- Send a **text description** → AI analyzes (cached if repeated) → preview with ✅ Log / ❌ Discard buttons
+**Natural language (no command needed):**
+- Send a **photo** → interactive analysis with clarification flow
+- Type food → meal analysis (fast food DB → cache → AI)
+- *"Alternative to Big Mac"* → food substitution
+- *"Is rice bad for fat loss?"* → AI Q&A
 
 ---
 
 ## 📁 Project Structure
 
 ```
-├── server/
-│   ├── bot.ts                     # Bot setup & command registration
-│   ├── server.ts                  # Express server entry point
-│   ├── handlers/
-│   │   ├── startHandler.ts        # /start command & welcome
-│   │   ├── onboardingHandler.ts   # Multi-step onboarding flow
-│   │   ├── onboardingState.ts     # In-memory onboarding session state
-│   │   ├── photoHandler.ts        # Photo meal analysis
-│   │   ├── textHandler.ts         # Text meal analysis (with cache)
-│   │   ├── mealConfirmHandler.ts  # ✅ Log / ❌ Discard callbacks
-│   │   ├── mealReplyFormatter.ts  # Preview & confirmed message formatters
-│   │   ├── pendingMealState.ts    # Temp storage for unconfirmed meals
-│   │   └── weeklyHandler.ts       # /weekly & /streak commands
-│   └── services/
-│       ├── db.ts                  # Supabase database operations
-│       ├── foodCache.ts           # In-memory food result cache
-│       └── nutrition/
-│           ├── visionFallback.ts  # Gemini AI analysis (image + text)
-│           └── aiRecommendations.ts # AI nutrition plan & weekly insights
-├── src/
-│   ├── components/
-│   │   ├── MealCard.tsx           # Meal card with score badge & AI tip
-│   │   └── NutritionChart.tsx     # Macro pie chart
-│   ├── pages/
-│   │   └── Dashboard.tsx          # Full dashboard with all features
-│   ├── App.tsx                    # Main app with mock data
-│   └── store.ts                   # Zustand state management
-├── shared/
-│   └── types.ts                   # Shared TypeScript interfaces
-└── package.json
+server/
+├── bot.ts                     # 11 commands + callback routing
+├── handlers/
+│   ├── startHandler.ts        # /start + onboarding
+│   ├── onboardingHandler.ts   # BMI + fitness goal + AI targets
+│   ├── photoHandler.ts        # Photo → clarification → re-analyze
+│   ├── textHandler.ts         # fastFoodDb → cache → AI + Q&A intent
+│   ├── mealConfirmHandler.ts  # confirm/discard + daily score display
+│   ├── mealReplyFormatter.ts  # Clean macro table + fiber + daily progress
+│   ├── pendingMealState.ts    # Two-step pending state
+│   ├── weeklyHandler.ts       # /weekly + /streak
+│   ├── hydrationHandler.ts    # /water + callbacks
+│   ├── weightHandler.ts       # /weight + metabolic adaptation
+│   ├── activityHandler.ts     # /activity + MET calorie burn
+│   ├── historyHandler.ts      # /history + food intelligence
+│   ├── planningHandler.ts     # /groceries + /plan
+│   ├── exportHandler.ts       # /export CSV file
+│   └── askHandler.ts          # /ask + nutrition Q&A intent
+└── services/
+    ├── db.ts                  # Supabase CRUD
+    ├── foodCache.ts           # 24h in-memory cache
+    ├── fastFoodDb.ts          # Built-in fast food database (50+ items)
+    ├── activityStore.ts       # Daily activity log + MET calculations
+    ├── hydrationStore.ts      # Daily water intake
+    ├── portionMemory.ts       # Smart portion learning per user/food
+    ├── dailyScore.ts          # Smart daily score (0-10, grade A-F)
+    └── nutrition/
+        ├── visionFallback.ts  # Gemini: image + text + context re-analysis
+        └── aiRecommendations.ts # 6 AI functions: nutrition plan, weekly insight,
+                                #   metabolic adjustment, grocery list, meal plan,
+                                #   food substitution
+
+src/
+├── pages/Dashboard.tsx        # Full Mini App dashboard
+├── components/MealCard.tsx    # Meal card with score + AI tip
+└── store.ts                   # Zustand state
 ```
 
 ---
@@ -245,61 +232,42 @@ npm run dev
 ## 🔧 Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  Telegram User                       │
-│         (Photo / Text / Commands)                    │
-└──────────────┬──────────────────────────────────────┘
-               │
-               ▼
-┌──────────────────────────────────────────────────────┐
-│              Grammy.js Bot                            │
-│  ┌──────────┐ ┌──────────┐ ┌─────────────────────┐  │
-│  │ /start   │ │ /weekly  │ │ Photo/Text Handler   │  │
-│  │ Onboard  │ │ /streak  │ │ → Preview + Confirm  │  │
-│  └──────────┘ └──────────┘ └─────────────────────┘  │
-└──────────────┬──────────────────────────────────────┘
-               │
-      ┌────────┴────────┐
-      ▼                 ▼
-┌──────────┐    ┌──────────────┐
-│ Supabase │    │ Gemini AI    │
-│ Database │    │ 2.5 Flash    │
-│ (Users,  │    │ (Vision +    │
-│  Meals)  │    │  Text +      │
-│          │    │  Nutrition)  │
-└──────────┘    └──────────────┘
-               │
-               ▼
-      ┌──────────────┐
-      │ Food Cache   │
-      │ (In-Memory)  │
-      └──────────────┘
+User (Telegram)
+      │
+      ▼
+Grammy.js Bot (11 commands)
+  ├── Photo → Detect → Clarify → Re-analyze → Confirm → Log → Daily Score
+  ├── Text  → FastFoodDB → Cache → AI → Q&A? → Sub? → Confirm → Log
+  ├── /activity → MET Calc → Calories Burned → Net Balance
+  ├── /weight  → Weekly Trend → Metabolic Adaptation
+  ├── /water   → Hydration Progress
+  ├── /ask     → Gemini Q&A with user profile context
+  ├── /history → Meal pattern analysis + timing
+  ├── /groceries → Recent meals → AI Shopping List
+  ├── /plan    → User targets → AI 7-Day Plan
+  ├── /weekly  → 7-day stats + timing + AI Insight
+  └── /export  → CSV file download
+      │
+      ├── Gemini 2.5 Flash (AI backbone)
+      ├── Supabase PostgreSQL (persistence)
+      └── In-Memory Stores (cache, water, activity, portions, weight, pending)
 ```
 
 ---
 
-## 📱 Migration to React Native / Expo
+## 🚀 Production Roadmap
 
-This architecture is designed for easy porting to native mobile:
-1. **State management** — Zustand store reusable as-is
-2. **Styling** — Tailwind CSS → NativeWind (zero-change classes)
-3. **Navigation** — React Router → React Navigation
-4. **Camera** — Add `expo-camera` for direct photo capture
-5. **Storage** — Replace `window.Telegram.WebApp` with `expo-secure-store`
-
----
-
-## 🚀 Production Upgrades
-
-| Feature | Current | Production |
-|---------|---------|------------|
-| Food Cache | In-memory Map | Redis / Upstash |
-| Image Storage | Telegram URL | Supabase Storage / S3 |
-| Deployment | Local | Vercel / Railway / Fly.io |
-| Monitoring | Console logs | Sentry / LogRocket |
+| Feature | Current | Upgrade |
+|---------|---------|---------|
+| Food Cache | In-memory 24h | Redis / Upstash |
+| Fast Food DB | 50 built-in | USDA / OpenFoodFacts API |
+| Activity / Water / Portions | In-memory | Supabase columns |
+| Activity data | Manual input | Apple Health / Google Fit |
+| Image Storage | Telegram CDN | Supabase Storage |
+| Deployment | Local | Railway / Fly.io / Vercel |
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License

@@ -214,3 +214,155 @@ Be encouraging but honest.
     return 'Keep logging your meals consistently for personalized weekly insights!';
   }
 }
+
+/**
+ * Metabolic Adaptation — analyze weekly weight change and suggest calorie/macro adjustments.
+ */
+export async function generateMetabolicAdjustment(data: {
+  fitnessGoal: string;
+  currentWeight: number;
+  previousWeight: number;
+  weeklyChange: number;
+  currentCalories: number;
+  currentCarbs: number;
+}): Promise<string> {
+  try {
+    const genAI = getGenAI();
+    const prompt = `
+You are a metabolic adaptation expert and AI coach.
+
+Goal: ${data.fitnessGoal}
+Previous weight: ${data.previousWeight}kg → Current: ${data.currentWeight}kg
+Weekly change: ${data.weeklyChange > 0 ? '+' : ''}${data.weeklyChange}kg
+Current calories: ${data.currentCalories} kcal/day
+Current carbs: ${data.currentCarbs}g/day
+
+Expected rates:
+- Fat loss: -0.3 to -0.8kg/week is ideal
+- Muscle gain: +0.1 to +0.25kg/week is ideal
+- Maintain: ±0.2kg is fine
+- Recomposition: slight loss or stable
+
+Give a 2-3 sentence analysis of whether progress is on track, then ONE specific adjustment:
+- If loss too slow → "Reduce carbs by Xg" or "cut 100-150 kcal"
+- If loss too fast → "Add 100-150 kcal, focus on protein"
+- If gain too fast → "Reduce surplus by 100 kcal"
+- If on track → "Stay the course, great progress!"
+
+Be specific with numbers. Format: analysis then adjustment on new line prefixed with 🎯.
+    `;
+    const response = await genAI.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text?.trim() || 'Keep tracking consistently for adaptive recommendations!';
+  } catch {
+    return 'Keep tracking consistently for adaptive recommendations!';
+  }
+}
+
+/**
+ * Smart Grocery List — based on the user's recent meal patterns.
+ */
+export async function generateGroceryList(meals: { description: string; nutrition: any }[], fitnessGoal: string): Promise<string> {
+  try {
+    const genAI = getGenAI();
+    const mealSummary = meals.slice(0, 20).map(m => m.description).join(', ');
+    const prompt = `
+You are a nutritionist creating a grocery list.
+
+User's recent meals: ${mealSummary}
+Fitness goal: ${fitnessGoal}
+
+Create a practical weekly grocery list:
+1. Include healthy versions of what they already eat
+2. Add 2-3 new items that would improve their diet for their goal
+3. Group by category (Proteins, Vegetables, Grains, Dairy/Alternatives, Fruits, Pantry)
+
+Format each category as:
+*Category:*
+• Item (why it's good)
+
+Keep it concise — max 5 items per category.
+    `;
+    const response = await genAI.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text?.trim() || 'Log more meals to get personalized grocery recommendations!';
+  } catch {
+    return 'Log more meals to get personalized grocery recommendations!';
+  }
+}
+
+/**
+ * Weekly Meal Planner — generates a 7-day meal plan.
+ */
+export async function generateMealPlan(targets: {
+  fitnessGoal: string;
+  dailyCalories: number;
+  dailyProtein: number;
+  dailyCarbs: number;
+  dailyFats: number;
+  gender: string;
+}): Promise<string> {
+  try {
+    const genAI = getGenAI();
+    const prompt = `
+You are a sports nutritionist creating a weekly meal plan.
+
+Goal: ${targets.fitnessGoal}
+Daily targets: ${targets.dailyCalories} kcal | Protein: ${targets.dailyProtein}g | Carbs: ${targets.dailyCarbs}g | Fats: ${targets.dailyFats}g
+
+Create a 7-day meal plan (Mon-Sun). For each day list:
+- Breakfast
+- Lunch  
+- Dinner
+- Optional: Snack
+
+Rules:
+- Keep calories within ±100 of target per day
+- Hit protein targets every day
+- Vary meals — don't repeat the same meal more than twice
+- Use practical, easy-to-prepare meals
+- Include approximate calories and protein for each meal
+
+Format:
+*📅 Monday*
+🌅 Breakfast: [meal] (~Xcal, Xg P)
+🍽️ Lunch: [meal] (~Xcal, Xg P)
+🌙 Dinner: [meal] (~Xcal, Xg P)
+
+[continue for all 7 days]
+    `;
+    const response = await genAI.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text?.trim() || 'Failed to generate meal plan. Please try again.';
+  } catch {
+    return 'Failed to generate meal plan. Please try again.';
+  }
+}
+
+/**
+ * Food Substitution — healthier alternatives for a given food.
+ */
+export async function generateFoodSubstitution(foodName: string, fitnessGoal: string): Promise<string> {
+  try {
+    const genAI = getGenAI();
+    const prompt = `
+You are a nutritionist. The user wants healthier alternatives to: "${foodName}"
+User's goal: ${fitnessGoal}
+
+Provide:
+1. Brief calorie/macro info for "${foodName}"
+2. 3-4 healthier alternatives with calorie comparison
+3. Why each alternative is better for their goal
+
+Format:
+🍔 *${foodName}*
+~XXX kcal | Xg P | Xg C | Xg F
+
+✅ *Healthier Alternatives:*
+• [Alternative] — ~XXX kcal (saves XXX kcal) — [why]
+
+Keep it concise and practical.
+    `;
+    const response = await genAI.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text?.trim() || `Try grilled chicken, turkey burgers, or a veggie wrap as alternatives to ${foodName}.`;
+  } catch {
+    return `Try grilled chicken, turkey burgers, or a veggie wrap as alternatives to ${foodName}.`;
+  }
+}

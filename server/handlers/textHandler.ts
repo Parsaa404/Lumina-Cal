@@ -1,11 +1,15 @@
 import { Context } from 'grammy';
 import { db } from '../services/db';
 import { analyzeFoodText, analyzeFoodImageWithContext } from '../services/nutrition/visionFallback';
+import { VisionAnalysisResult } from '../services/nutrition/visionFallback';
 import { isOnboarding } from './onboardingState';
 import { handleOnboardingText } from './onboardingHandler';
 import { formatMealPreview } from './mealReplyFormatter';
 import { setPendingMeal, hasActivePending, getActivePending, updatePendingMeal, PendingMeal } from './pendingMealState';
 import { getCachedFood, setCachedFood } from '../services/foodCache';
+import { generateFoodSubstitution } from '../services/nutrition/aiRecommendations';
+import { searchFastFood } from '../services/fastFoodDb';
+import { handleAsk, isNutritionQuestion } from './askHandler';
 
 export async function handleText(ctx: Context) {
   const telegramUser = ctx.from;
@@ -29,6 +33,26 @@ export async function handleText(ctx: Context) {
     }
   }
 
+  // ── Food Substitution Intent Detection ──
+  const substitutionIntent = detectSubstitutionIntent(text);
+  if (substitutionIntent) {
+    const user = await db.getUser(telegramUser.id);
+    const loadingMsg = await ctx.reply('🔄 Finding healthier alternatives...');
+    try {
+      const result = await generateFoodSubstitution(substitutionIntent, user?.fitnessGoal || 'healthy_lifestyle');
+      await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id, result, { parse_mode: 'Markdown' });
+    } catch {
+      await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id, 'Could not find alternatives. Please try again.');
+    }
+    return;
+  }
+
+  // ── AI Nutrition Q&A intent detection ──
+  if (isNutritionQuestion(text) && text.length > 15) {
+    await handleAsk(ctx);
+    return;
+  }
+
   // ── Normal text meal logging ──
   const user = await db.getUser(telegramUser.id);
   if (!user) {
@@ -39,12 +63,20 @@ export async function handleText(ctx: Context) {
   const message = await ctx.reply('🔍 Analyzing your meal... Please wait.');
 
   try {
-    let analysis = getCachedFood(text);
+    // 1. Fast food database — instant, most accurate
+    const fastFoodHit = searchFastFood(text);
+    let analysis = fastFoodHit ? fastFoodToAnalysis(fastFoodHit) : null;
     let fromCache = false;
+    let fromDb = !!fastFoodHit;
 
-    if (analysis) {
-      fromCache = true;
-    } else {
+    // 2. In-memory food cache
+    if (!analysis) {
+      const cached = getCachedFood(text);
+      if (cached) { analysis = cached; fromCache = true; }
+    }
+
+    // 3. AI analysis
+    if (!analysis) {
       analysis = await analyzeFoodText(text);
       if (analysis) setCachedFood(text, analysis);
     }
@@ -64,7 +96,8 @@ export async function handleText(ctx: Context) {
     });
 
     let previewText = formatMealPreview(analysis);
-    if (fromCache) previewText += `\n\n⚡ _Instant result (cached)_`;
+    if (fromDb)    previewText += `\n\n🏪 _From fast food database — highly accurate_`;
+    else if (fromCache) previewText += `\n\n⚡ _Instant result (cached)_`;
 
     await ctx.api.editMessageText(
       ctx.chat?.id as number, message.message_id, previewText,
@@ -149,4 +182,52 @@ async function handleClarificationReply(ctx: Context, clarification: string, pen
       },
     });
   }
+}
+
+/**
+ * Detects if the user is asking for food substitutions.
+ * Returns the food name to find alternatives for, or null.
+ */
+function detectSubstitutionIntent(text: string): string | null {
+  const lower = text.toLowerCase();
+
+  const patterns = [
+    /(?:alternative(?:s)? to|instead of|healthier (?:than|version of)|swap|replace|substitute for|what (?:can|should) i (?:eat|have) instead of)\s+([\w\s]{2,40})/i,
+    /([\w\s]{2,30}) (?:alternative|substitute|swap|replacement)/i,
+    /healthy(?:ier)? (?:version|option|choice) (?:of|for)\s+([\w\s]{2,30})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+
+  return null;
+}
+
+/** Converts a FastFoodItem to a VisionAnalysisResult so it flows through the same preview/confirm pipeline. */
+function fastFoodToAnalysis(item: import('../services/fastFoodDb').FastFoodItem): import('../services/nutrition/visionFallback').VisionAnalysisResult {
+  return {
+    description: `${item.brand} ${item.name}`,
+    cuisineType: item.brand,
+    confidenceScore: 99,
+    nutrition: {
+      calories: item.calories,
+      protein: item.protein,
+      carbs: item.carbs,
+      fats: item.fats,
+      fiber: item.fiber || 0,
+      sugar: item.sugar || 0,
+      sodium: item.sodium || 0,
+    },
+    items: [{ name: item.name, portion: '1 serving', calories: item.calories }],
+    mealScore: {
+      overall: 5,
+      pros: ['Known nutritional data'],
+      cons: item.sodium && item.sodium > 800 ? ['High sodium'] : [],
+    },
+    aiFeedback: `Exact nutrition data from ${item.brand}'s official menu.`,
+  };
 }

@@ -2,6 +2,7 @@ import { Context } from 'grammy';
 import { db } from '../services/db';
 import { getPendingMeal, deletePendingMeal, updatePendingMeal } from './pendingMealState';
 import { formatMealPreview, formatMealConfirmed } from './mealReplyFormatter';
+import { calculateDailyScore, formatDailyScore } from '../services/dailyScore';
 
 /**
  * Handles:
@@ -104,7 +105,13 @@ export async function handleMealConfirmCallback(ctx: Context) {
     const today = new Date().toISOString().split('T')[0];
     const summary = user ? await db.getDailySummary(user.id, today) : null;
 
-    const confirmedText = formatMealConfirmed(analysis, user!, summary, streak);
+    let confirmedText = formatMealConfirmed(analysis, user!, summary, streak);
+
+    // Append daily score if we have enough data
+    if (summary && user) {
+      const score = calculateDailyScore(summary, user);
+      confirmedText += formatDailyScore(score);
+    }
 
     try {
       await ctx.editMessageText(confirmedText, {

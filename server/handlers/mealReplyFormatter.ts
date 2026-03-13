@@ -21,7 +21,8 @@ export function formatMealPreview(analysis: VisionAnalysisResult): string {
 
   // Nutrition — clean, no emojis, aligned
   msg += `\n*Nutrition Breakdown:*\n`;
-  msg += formatNutritionTable(calories, protein, carbs, fats, sugar, sodium);
+  const n = analysis.nutrition;
+  msg += formatNutritionTable(n.calories, n.protein, n.carbs, n.fats, n.sugar, n.sodium, n.fiber);
 
   // Meal Score
   if (score) {
@@ -55,7 +56,8 @@ export function formatMealConfirmed(
 
   let msg = `✅ *Meal Logged!*\n\n`;
   msg += `*${analysis.description}*\n`;
-  msg += formatNutritionTable(calories, protein, carbs, fats);
+  const an = analysis.nutrition;
+  msg += formatNutritionTable(an.calories, an.protein, an.carbs, an.fats, an.sugar, an.sodium, an.fiber);
 
   if (analysis.mealScore) {
     msg += `\nMeal Score: *${analysis.mealScore.overall} / 10*\n`;
@@ -113,7 +115,8 @@ function formatNutritionTable(
   carbs: number,
   fats: number,
   sugar?: number,
-  sodium?: number
+  sodium?: number,
+  fiber?: number,
 ): string {
   const rows: [string, string][] = [
     ['Calories', `${Math.round(calories)} kcal`],
@@ -121,7 +124,8 @@ function formatNutritionTable(
     ['Carbs',    `${Math.round(carbs)} g`],
     ['Fats',     `${Math.round(fats)} g`],
   ];
-  if (sugar !== undefined && sugar > 0) rows.push(['Sugar', `${Math.round(sugar)} g`]);
+  if (fiber  !== undefined && fiber  > 0) rows.push(['Fiber',  `${Math.round(fiber)} g`]);
+  if (sugar  !== undefined && sugar  > 0) rows.push(['Sugar',  `${Math.round(sugar)} g`]);
   if (sodium !== undefined && sodium > 0) rows.push(['Sodium', `${Math.round(sodium)} mg`]);
 
   const maxLabel = Math.max(...rows.map(([l]) => l.length));
