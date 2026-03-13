@@ -1,7 +1,7 @@
 import { useAppStore } from '../store';
 import { MealCard } from '../components/MealCard';
 import { motion } from 'motion/react';
-import { Activity, Flame, Utensils, Heart, AlertTriangle, TrendingUp, Droplets, Footprints, Star, Trophy, Zap } from 'lucide-react';
+import { Activity, Flame, Utensils, Heart, AlertTriangle, TrendingUp, Droplets, Footprints, Star, Trophy, Zap, Scale } from 'lucide-react';
 
 const GOAL_LABELS: Record<string, string> = {
   muscle_building: '💪 Muscle Gain',
@@ -51,15 +51,19 @@ export function Dashboard() {
   if (!user || !summary) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-zinc-50 dark:bg-black">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Welcome to Cal AI</h2>
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Welcome to Lumina Cal</h2>
         <p className="text-zinc-500 dark:text-zinc-400">Please start the bot in Telegram to register your account.</p>
       </div>
     );
   }
 
   const calGoal = user.dailyCalorieGoal || 2000;
-  const calProgress = Math.min((summary.totalCalories / calGoal) * 100, 100);
-  const calRatio = summary.totalCalories / calGoal;
+  const burned = summary.caloriesBurned || 0;
+  // Net calories: eaten - burned. But for the progress bar, showing eaten is often preferred, 
+  // or (eaten - burned) / goal. We'll show eaten / (goal + burned)
+  const adjustedGoal = calGoal + burned;
+  const calProgress = Math.min((summary.totalCalories / adjustedGoal) * 100, 100);
+  const calRatio = summary.totalCalories / adjustedGoal;
   const proteinRatio = summary.totalProtein / (user.dailyProteinGoal || 150);
   const carbsRatio = summary.totalCarbs / (user.dailyCarbsGoal || 200);
   const fatsRatio = summary.totalFats / (user.dailyFatsGoal || 65);
@@ -77,7 +81,7 @@ export function Dashboard() {
     : null;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="min-h-screen bg-zinc-50 dark:bg-black p-4 pb-24 text-zinc-900 dark:text-zinc-100"
@@ -106,7 +110,7 @@ export function Dashboard() {
 
       {/* Body Profile Card */}
       {user.bmi && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
@@ -180,7 +184,7 @@ export function Dashboard() {
             <div>
               <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">⚠️ High Sugar: {Math.round(summary.totalSugar)}g / 35g</h4>
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                • Replace soda with sparkling water<br/>
+                • Replace soda with sparkling water<br />
                 • Choose dark chocolate over milk chocolate
               </p>
             </div>
@@ -193,10 +197,10 @@ export function Dashboard() {
         <div className="flex justify-between items-end mb-4">
           <div>
             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1 flex items-center gap-1">
-              <Flame size={16} className="text-orange-500" /> Calories
+              <Flame size={16} className="text-orange-500" /> Net Calories
             </p>
             <div className="flex items-baseline gap-1">
-              <span className={`text-4xl font-bold tracking-tight ${calRatio > 1 ? 'text-red-500' : ''}`}>{Math.round(summary.totalCalories)}</span>
+              <span className={`text-4xl font-bold tracking-tight ${calRatio > 1 ? 'text-red-500' : ''}`}>{Math.round(summary.totalCalories - burned)}</span>
               <span className="text-zinc-500 dark:text-zinc-400 font-medium">/ {calGoal}</span>
             </div>
           </div>
@@ -208,9 +212,9 @@ export function Dashboard() {
             </div>
           )}
         </div>
-        
+
         <div className="h-3 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden mb-6">
-          <motion.div 
+          <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(calProgress, 100)}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
@@ -236,6 +240,57 @@ export function Dashboard() {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        {/* Water Card */}
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1">
+            <Droplets size={16} className="text-blue-500" /> Hydration
+          </p>
+          <div className="flex items-baseline gap-1 mb-2">
+            <span className="text-2xl font-bold">{summary.waterAmount || 0}</span>
+            <span className="text-xs text-zinc-500">/ 2500 ml</span>
+          </div>
+          <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+            <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(((summary.waterAmount || 0) / 2500) * 100, 100)}%` }} className="h-full rounded-full bg-blue-500" />
+          </div>
+        </div>
+
+        {/* Activity Card */}
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1">
+            <Footprints size={16} className="text-orange-500" /> Burned
+          </p>
+          <div className="flex items-baseline gap-1 mb-1">
+            <span className="text-2xl font-bold">{burned}</span>
+            <span className="text-xs text-zinc-500">kcal</span>
+          </div>
+          {summary.activities && summary.activities.length > 0 ? (
+            <p className="text-xs text-zinc-500 truncate">
+              {summary.activities.map((a: any) => a.type).join(', ')}
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-500">No activity yet</p>
+          )}
+        </div>
+      </div>
+
+      {/* Weight Card */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 flex justify-between items-center mb-6">
+        <div>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1 flex items-center gap-1">
+            <Scale size={16} className="text-purple-500" /> Current Weight
+          </p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold">{user.weight || '--'}</span>
+            <span className="text-xs text-zinc-500">kg</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-zinc-500 mb-1">Target Goal</p>
+          <p className="text-sm font-medium">{user.targetWeight ? `${user.targetWeight} kg` : 'Not set'}</p>
+        </div>
+      </div>
+
       {/* Meals List */}
       <div>
         <div className="flex justify-between items-center mb-4">
@@ -248,7 +303,7 @@ export function Dashboard() {
             </span>
           )}
         </div>
-        
+
         {summary.meals.length === 0 ? (
           <div className="text-center py-10 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
             <p className="text-zinc-500 dark:text-zinc-400 text-sm">No meals logged today.</p>
@@ -286,7 +341,7 @@ function MacroStat({ label, current, goal, color }: { label: string, current: nu
 
 function generateSuggestion(summary: any, user: any) {
   if (summary.totalCalories === 0) return "Log your first meal to get personalized insights!";
-  
+
   const proteinRatio = summary.totalProtein / (user.dailyProteinGoal || 150);
   const calRatio = summary.totalCalories / (user.dailyCalorieGoal || 2000);
   const goal = user.fitnessGoal || 'general_fitness';
@@ -315,6 +370,6 @@ function generateSuggestion(summary: any, user: any) {
 
   if (proteinRatio < calRatio - 0.2) return "Your protein is lagging behind. Add Greek yogurt, chicken breast, or a protein shake to your next meal.";
   if (calRatio > 0.9 && proteinRatio < 0.8) return "Close to your calorie limit but low on protein. Focus on lean protein sources.";
-  
+
   return "You're on track! Keep up the great work balancing your macros. 💪";
 }

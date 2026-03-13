@@ -5,6 +5,7 @@ import path from 'path';
 import { setupBot } from './server/bot';
 import { validateTelegramInitData } from './server/middleware/auth';
 import { db } from './server/services/db';
+import { startReminders } from './server/services/reminders';
 
 async function startServer() {
   const app = express();
@@ -26,24 +27,50 @@ async function startServer() {
       const user = await db.getUser(telegramId);
       if (!user) return res.status(404).json({ error: 'User not found' });
       
+      const weightLogs = await db.getWeightHistory(user.id);
+      if (weightLogs.length > 0) {
+        user.weight = weightLogs[weightLogs.length - 1].weight;
+      } else {
+        user.weight = undefined;
+      }
+      
       res.json(user);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
+  app.get('/api/test-user/:id', async (req, res) => {
+    const telegramId = Number(req.params.id);
+    const user = await db.getUser(telegramId);
+    res.json(user);
+  });
+
   app.get('/api/summary', validateTelegramInitData, async (req, res) => {
     try {
-      const telegramId = req.user?.id;
+      const telegramId = Number(req.user?.id);
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
       
-      if (!telegramId) return res.status(401).json({ error: 'Unauthorized' });
+      if (!telegramId || isNaN(telegramId)) return res.status(401).json({ error: 'Unauthorized' });
       
       const user = await db.getUser(telegramId);
       if (!user) return res.status(404).json({ error: 'User not found' });
       
       const summary = await db.getDailySummary(user.id, date);
-      res.json(summary || { date, totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFats: 0, meals: [] });
+
+      res.json({
+        date,
+        totalCalories: summary?.totalCalories || 0,
+        totalProtein: summary?.totalProtein || 0,
+        totalCarbs: summary?.totalCarbs || 0,
+        totalFats: summary?.totalFats || 0,
+        totalSugar: summary?.totalSugar || 0,
+        totalSodium: summary?.totalSodium || 0,
+        waterAmount: summary?.waterAmount || 0,
+        caloriesBurned: summary?.caloriesBurned || 0,
+        activities: summary?.activities || [],
+        meals: summary?.meals || []
+      });
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -57,6 +84,7 @@ async function startServer() {
     bot.start({
       onStart: (botInfo) => {
         console.log(`Bot started as @${botInfo.username}`);
+        startReminders(bot);
       }
     }).catch(console.error);
   } else {

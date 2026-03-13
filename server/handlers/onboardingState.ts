@@ -3,7 +3,7 @@
  * Each user's onboarding data is stored by their Telegram ID.
  */
 
-export type OnboardingStep = 'gender' | 'height' | 'weight' | 'age' | 'goal' | 'done';
+export type OnboardingStep = 'gender' | 'height' | 'weight' | 'age' | 'goal' | 'activity' | 'done';
 
 export interface OnboardingData {
   step: OnboardingStep;
@@ -12,6 +12,7 @@ export interface OnboardingData {
   weight?: number;  // kg
   age?: number;
   fitnessGoal?: string;
+  activityLevel?: string;  // 'sedentary' | 'light' | 'moderate' | 'active' | 'athlete'
 }
 
 // Map of telegramId -> onboarding data

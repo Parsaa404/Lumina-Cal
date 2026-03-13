@@ -2,12 +2,7 @@ import { Context } from 'grammy';
 import { db } from '../services/db';
 import { generateMetabolicAdjustment } from '../services/nutrition/aiRecommendations';
 
-// In-memory weight log per user per week
-const weightLog = new Map<string, { weight: number; date: string; timestamp: number }[]>();
 
-function getUserKey(telegramId: number): string {
-  return `wl_${telegramId}`;
-}
 
 export async function handleWeight(ctx: Context) {
   const telegramUser = ctx.from;
@@ -29,17 +24,17 @@ export async function handleWeight(ctx: Context) {
     return;
   }
 
-  const key = getUserKey(telegramUser.id);
-  const logs = weightLog.get(key) || [];
-  const today = new Date().toISOString().split('T')[0];
+  const logs = await db.getWeightHistory(user.id);
+  const tzOffset = new Date().getTimezoneOffset() * 60000;
+  // Get local string for comparison
+  const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
 
-  // Don't duplicate on same day
-  const alreadyToday = logs.find(l => l.date === today);
+  // Don't duplicate on same day natively
+  const alreadyToday = logs.find(l => l.loggedAt.includes(today));
   if (!alreadyToday) {
-    logs.push({ weight: weightArg, date: today, timestamp: Date.now() });
-    // Keep last 12 weeks
-    while (logs.length > 12) logs.shift();
-    weightLog.set(key, logs);
+    await db.logWeight(user.id, weightArg);
+    await db.updateUserProfile(telegramUser.id, { weight: weightArg });
+    logs.push({ weight: weightArg, loggedAt: new Date().toISOString() });
   }
 
   const loadingMsg = await ctx.reply('🧠 Analyzing your weight trend...');
@@ -78,6 +73,21 @@ export async function handleWeight(ctx: Context) {
       parse_mode: 'Markdown',
     });
 
+    // Target Goal Achievement Check
+    if (user.targetWeight && user.fitnessGoal) {
+      let achieved = false;
+      if (user.fitnessGoal === 'weight_loss' && weightArg <= user.targetWeight) achieved = true;
+      else if ((user.fitnessGoal === 'muscle_building' || user.fitnessGoal.includes('gain')) && weightArg >= user.targetWeight) achieved = true;
+      else if (weightArg === user.targetWeight) achieved = true;
+
+      if (achieved) {
+        // Clear target weight from DB to prompt for a new one
+        await db.updateUserGoals(telegramUser.id, { targetWeight: null as any });
+        
+        await ctx.reply(`🎉 *Goal Achieved!* 🎉\n\nCongratulations on reaching your target weight of *${user.targetWeight}kg*! ✅\n\nWhat is your next step? Set a new target weight limit using:\n\`/target [weight]\``, { parse_mode: 'Markdown' });
+      }
+    }
+
     // If adjustments recommended, apply them to user goals
     // (this would update Supabase in a production build)
   } catch (error) {
@@ -87,6 +97,8 @@ export async function handleWeight(ctx: Context) {
   }
 }
 
-export function getWeightHistory(telegramId: number) {
-  return weightLog.get(getUserKey(telegramId)) || [];
+export async function getWeightHistory(telegramId: number) {
+  const user = await db.getUser(telegramId);
+  if (!user) return [];
+  return db.getWeightHistory(user.id);
 }

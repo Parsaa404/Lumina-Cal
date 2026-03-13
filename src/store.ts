@@ -34,9 +34,14 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isLoading: true });
     try {
       const headers = { 'x-telegram-init-data': initData };
+      
+      // Fix timezone bug: request the local date instead of defaulting to UTC on server
+      const tzOffset = new Date().getTimezoneOffset() * 60000;
+      const localDate = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+
       const [userRes, summaryRes] = await Promise.all([
         fetch('/api/user', { headers }),
-        fetch('/api/summary', { headers })
+        fetch(`/api/summary?date=${localDate}`, { headers })
       ]);
 
       if (userRes.ok && summaryRes.ok) {

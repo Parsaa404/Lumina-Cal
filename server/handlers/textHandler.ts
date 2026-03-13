@@ -10,6 +10,7 @@ import { getCachedFood, setCachedFood } from '../services/foodCache';
 import { generateFoodSubstitution } from '../services/nutrition/aiRecommendations';
 import { searchFastFood } from '../services/fastFoodDb';
 import { handleAsk, isNutritionQuestion } from './askHandler';
+import { handlePhotoTextAnswer } from './photoQAHandler';
 
 export async function handleText(ctx: Context) {
   const telegramUser = ctx.from;
@@ -24,12 +25,12 @@ export async function handleText(ctx: Context) {
   const text = ctx.message?.text?.trim();
   if (!text) return;
 
-  // ── Clarification reply for a pending photo analysis ──
+  // ── Photo Q&A text interception (Q2 seasonings or Q3 portions) ──
   if (hasActivePending(telegramUser.id)) {
     const pending = getActivePending(telegramUser.id)!;
-    if (pending.step === 'awaiting_clarification' && pending.base64Image) {
-      await handleClarificationReply(ctx, text, pending);
-      return;
+    if (pending.step === 'q_seasoning' || pending.step === 'q_portions') {
+      const handled = await handlePhotoTextAnswer(ctx);
+      if (handled) return;
     }
   }
 

@@ -48,6 +48,9 @@ export default function App() {
           totalFats: 55,
           totalSugar: 28,
           totalSodium: 1800,
+          waterAmount: 1250,
+          caloriesBurned: 450,
+          activities: [{ type: 'Running', durationMin: 30, caloriesBurned: 450 }],
           meals: [
             {
               id: 'm1',

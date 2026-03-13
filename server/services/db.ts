@@ -6,6 +6,14 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'placeholder-key';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Helper to reliably get the YYYY-MM-DD string exactly as it appears in the server's local timezone
+function getLocalDayString(dateObj: Date): string {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export const db = {
   async getUser(telegramId: number): Promise<User | null> {
     const { data, error } = await supabase
@@ -109,10 +117,9 @@ export const db = {
   },
 
   async getDailySummary(userId: string, date: string): Promise<DailySummary | null> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const [year, month, day] = date.split('-').map(Number);
+    const startOfDay = new Date(year, month - 1, day, 0, 0, 0);
+    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
 
     const { data: meals, error } = await supabase
       .from('meals')
@@ -143,7 +150,83 @@ export const db = {
       summary.totalSodium! += meal.nutrition.sodium || 0;
     }
 
+    // Attach water and activity from DB using the exact local date string
+    summary.waterAmount = await this.getWaterForDate(userId, date);
+    const activityData = await this.getActivityForDate(userId, date);
+    summary.caloriesBurned = activityData.totalBurned;
+    summary.activities = activityData.entries;
+
     return summary;
+  },
+
+  async logWater(userId: string, amount_ml: number): Promise<number> {
+    const { error } = await supabase.from('water_logs').insert({
+      userId,
+      amount_ml,
+    });
+    if (error) console.error('Supabase logWater error:', error);
+    return this.getWaterForDate(userId, new Date());
+  },
+
+  async getWaterForDate(userId: string, dateObj: string | Date): Promise<number> {
+    const dateStr = dateObj instanceof Date ? getLocalDayString(dateObj) : dateObj;
+    
+    // Parse as local time string exactly
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const startOfDay = new Date(year, month - 1, day, 0, 0, 0);
+    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from('water_logs')
+      .select('amount_ml')
+      .eq('userId', userId)
+      .gte('loggedAt', startOfDay.toISOString())
+      .lte('loggedAt', endOfDay.toISOString());
+
+    if (error || !data) return 0;
+    return data.reduce((sum, log) => sum + log.amount_ml, 0);
+  },
+
+  async logActivity(
+    userId: string,
+    activityType: string,
+    durationMin: number,
+    caloriesBurned: number
+  ): Promise<void> {
+    const { error } = await supabase.from('activity_logs').insert({
+      userId,
+      activityType,
+      durationMin,
+      caloriesBurned,
+    });
+    if (error) console.error('Supabase logActivity error:', error);
+  },
+
+  async getActivityForDate(userId: string, dateObj: string | Date): Promise<{ entries: any[]; totalBurned: number }> {
+    const dateStr = dateObj instanceof Date ? getLocalDayString(dateObj) : dateObj;
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const startOfDay = new Date(year, month - 1, day, 0, 0, 0);
+    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .eq('userId', userId)
+      .gte('loggedAt', startOfDay.toISOString())
+      .lte('loggedAt', endOfDay.toISOString());
+
+    if (error || !data) return { entries: [], totalBurned: 0 };
+
+    const entries = data.map(log => ({
+      type: log.activityType,
+      durationMin: log.durationMin,
+      caloriesBurned: log.caloriesBurned,
+      timestamp: new Date(log.loggedAt).getTime()
+    }));
+
+    const totalBurned = entries.reduce((sum, act) => sum + act.caloriesBurned, 0);
+    return { entries, totalBurned };
   },
 
   /**
@@ -164,4 +247,23 @@ export const db = {
     if (error || !data) return [];
     return data as MealLog[];
   },
+
+  async logWeight(userId: string, weight: number): Promise<void> {
+    const { error } = await supabase.from('weight_logs').insert({
+      userId,
+      weight,
+    });
+    if (error) console.error('Supabase logWeight error:', error);
+  },
+
+  async getWeightHistory(userId: string): Promise<{ weight: number; loggedAt: string }[]> {
+    const { data } = await supabase
+      .from('weight_logs')
+      .select('weight, loggedAt')
+      .eq('userId', userId)
+      .order('loggedAt', { ascending: true })
+      .limit(12);
+    
+    return data || [];
+  }
 };

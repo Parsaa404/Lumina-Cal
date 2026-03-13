@@ -55,9 +55,27 @@ export async function handlePlan(ctx: Context) {
       gender: user.gender || 'male',
     });
 
-    await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id, plan, {
+    const chunks: string[] = [];
+    let currentChunk = '';
+    const paragraphs = plan.split('\n\n');
+    
+    for (const p of paragraphs) {
+      if ((currentChunk + p + '\n\n').length > 4000) {
+        if (currentChunk) chunks.push(currentChunk.trim());
+        currentChunk = p + '\n\n';
+      } else {
+        currentChunk += p + '\n\n';
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk.trim());
+
+    await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id, chunks[0], {
       parse_mode: 'Markdown',
     });
+
+    for (let i = 1; i < chunks.length; i++) {
+      await ctx.reply(chunks[i], { parse_mode: 'Markdown' });
+    }
   } catch (error) {
     console.error('Meal plan error:', error);
     await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id,

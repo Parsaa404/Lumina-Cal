@@ -12,32 +12,55 @@ import { handleExport } from './handlers/exportHandler';
 import { handleActivity } from './handlers/activityHandler';
 import { handleHistory } from './handlers/historyHandler';
 import { handleAsk } from './handlers/askHandler';
+import { handleQuickAdd, handleQuickAddCallback } from './handlers/quickAddHandler';
+import { handleRecipe } from './handlers/recipeHandler';
+import { handlePhotoCookingCallback, handlePhotoSeasoningCallback } from './handlers/photoQAHandler';
+import { handleTarget } from './handlers/targetHandler';
 
 export function setupBot(token: string): Bot {
   const bot = new Bot(token);
 
   // ── Commands ──────────────────────────────────────────────
-  bot.command('start',     handleStart);
-  bot.command('weekly',    handleWeekly);
-  bot.command('streak',    handleStreak);
-  bot.command('water',     handleWater);
-  bot.command('weight',    handleWeight);
-  bot.command('groceries', handleGroceries);
-  bot.command('plan',      handlePlan);
-  bot.command('export',    handleExport);
-  bot.command('activity',  handleActivity);
-  bot.command('history',   handleHistory);
-  bot.command('ask',       handleAsk);
+  bot.command('start',    handleStart);
+  bot.command('weekly',   handleWeekly);
+  bot.command('streak',   handleStreak);
+  bot.command('water',    handleWater);
+  bot.command('weight',   handleWeight);
+  bot.command('groceries',handleGroceries);
+  bot.command('plan',     handlePlan);
+  bot.command('export',   handleExport);
+  bot.command('activity', handleActivity);
+  bot.command('history',  handleHistory);
+  bot.command('ask',      handleAsk);
+  bot.command('quickadd', handleQuickAdd);
+  bot.command('recipe',   handleRecipe);
+  bot.command('target',   handleTarget);
 
   // ── Inline Callbacks ──────────────────────────────────────
   bot.on('callback_query:data', async (ctx) => {
     const data = ctx.callbackQuery.data;
 
+    // Photo Q&A: cooking method
+    if (data.startsWith('photo_cook_')) {
+      await handlePhotoCookingCallback(ctx);
+      return;
+    }
+    // Photo Q&A: seasoning
+    if (data.startsWith('photo_season_')) {
+      await handlePhotoSeasoningCallback(ctx);
+      return;
+    }
+    // Quick Add food tap
+    if (data.startsWith('quickadd_')) {
+      await handleQuickAddCallback(ctx);
+      return;
+    }
+    // Hydration quick-add
     if (data.startsWith('water_add_')) {
       await handleWaterCallback(ctx);
       return;
     }
-
+    // Meal confirm / discard / skip-clarify
     if (
       data.startsWith('skip_clarify_') ||
       data.startsWith('confirm_meal_') ||
@@ -46,7 +69,7 @@ export function setupBot(token: string): Bot {
       await handleMealConfirmCallback(ctx);
       return;
     }
-
+    // Onboarding buttons
     await handleOnboardingCallback(ctx);
   });
 
@@ -57,8 +80,7 @@ export function setupBot(token: string): Bot {
   // ── Error Handler ─────────────────────────────────────────
   bot.catch((err) => {
     const ctx = err.ctx;
-    console.error(`Error while handling update ${ctx.update.update_id}:`);
-    console.error(err.error);
+    console.error(`Error handling update ${ctx.update.update_id}:`, err.error);
   });
 
   return bot;

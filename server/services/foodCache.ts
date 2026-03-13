@@ -1,57 +1,43 @@
 /**
- * In-memory cache for food analysis results.
- * Caches text-based food queries to avoid redundant AI calls.
- * Key: normalized food text (lowercase, trimmed)
- * Value: { result, timestamp }
+ * Food cache with MD5 hash keys for consistent cache hits.
+ * "200g grilled chicken" and "grilled chicken 200g" → same cache entry.
  */
 
-import { VisionAnalysisResult } from '../services/nutrition/visionFallback';
+import { createHash } from 'crypto';
+import { VisionAnalysisResult } from './nutrition/visionFallback';
 
 interface CacheEntry {
   result: VisionAnalysisResult;
-  timestamp: number;
+  expiresAt: number;
 }
 
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const MAX_CACHE_SIZE = 500;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_SIZE = 500;
+const cache = new Map<string, CacheEntry>();
 
-const foodCache = new Map<string, CacheEntry>();
-
-function normalizeKey(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ')       // collapse whitespace
-    .replace(/[^\w\s]/g, '');    // remove punctuation
+function normalizeQuery(text: string): string {
+  return text.toLowerCase().replace(/[^\w\s]/g, '').trim().split(/\s+/).sort().join(' ');
 }
 
-export function getCachedFood(text: string): VisionAnalysisResult | null {
-  const key = normalizeKey(text);
-  const entry = foodCache.get(key);
-  
+function hashKey(text: string): string {
+  return createHash('md5').update(normalizeQuery(text)).digest('hex').slice(0, 12);
+}
+
+export function getCachedFood(query: string): VisionAnalysisResult | null {
+  const key = hashKey(query);
+  const entry = cache.get(key);
   if (!entry) return null;
-  
-  // Check TTL
-  if (Date.now() - entry.timestamp > CACHE_TTL) {
-    foodCache.delete(key);
-    return null;
-  }
-  
+  if (Date.now() > entry.expiresAt) { cache.delete(key); return null; }
   return entry.result;
 }
 
-export function setCachedFood(text: string, result: VisionAnalysisResult): void {
-  const key = normalizeKey(text);
-  
-  // Evict oldest entries if cache is full
-  if (foodCache.size >= MAX_CACHE_SIZE) {
-    const oldestKey = foodCache.keys().next().value;
-    if (oldestKey) foodCache.delete(oldestKey);
+export function setCachedFood(query: string, result: VisionAnalysisResult): void {
+  if (cache.size >= MAX_SIZE) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
   }
-  
-  foodCache.set(key, { result, timestamp: Date.now() });
+  cache.set(hashKey(query), { result, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
-export function getCacheStats(): { size: number; maxSize: number } {
-  return { size: foodCache.size, maxSize: MAX_CACHE_SIZE };
-}
+export function clearCache(): void { cache.clear(); }
+export function getCacheSize(): number { return cache.size; }

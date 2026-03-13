@@ -1,6 +1,5 @@
 import { Context } from 'grammy';
 import { db } from '../services/db';
-import { addWater, getWaterToday } from '../services/hydrationStore';
 
 const DAILY_GOAL_ML = 2500; // 2.5L default
 
@@ -8,14 +7,20 @@ export async function handleWater(ctx: Context) {
   const telegramUser = ctx.from;
   if (!telegramUser) return;
 
+  const user = await db.getUser(telegramUser.id);
+  if (!user) { await ctx.reply('Please use /start first.'); return; }
+
   // Show current status + quick-add buttons
-  const current = getWaterToday(telegramUser.id);
-  await sendWaterStatus(ctx, telegramUser.id, current);
+  const current = await db.getWaterForDate(user.id, new Date());
+  await sendWaterStatus(ctx, current);
 }
 
 export async function handleWaterCallback(ctx: Context) {
   const telegramUser = ctx.from;
   if (!telegramUser) return;
+
+  const user = await db.getUser(telegramUser.id);
+  if (!user) { await ctx.answerCallbackQuery({ text: 'User not found. Try /start', show_alert: true }); return; }
 
   const data = ctx.callbackQuery?.data;
   if (!data?.startsWith('water_add_')) return;
@@ -23,7 +28,7 @@ export async function handleWaterCallback(ctx: Context) {
   const ml = parseInt(data.replace('water_add_', ''));
   if (isNaN(ml)) return;
 
-  const newTotal = addWater(telegramUser.id, ml);
+  const newTotal = await db.logWater(user.id, ml);
   await ctx.answerCallbackQuery({ text: `+${ml}ml logged! 💧` });
 
   const percent = Math.round((newTotal / DAILY_GOAL_ML) * 100);
@@ -41,7 +46,7 @@ export async function handleWaterCallback(ctx: Context) {
   } catch { /* ignore */ }
 }
 
-async function sendWaterStatus(ctx: Context, telegramId: number, currentMl: number) {
+async function sendWaterStatus(ctx: Context, currentMl: number) {
   const percent = Math.round((currentMl / DAILY_GOAL_ML) * 100);
   const remaining = Math.max(0, DAILY_GOAL_ML - currentMl);
 

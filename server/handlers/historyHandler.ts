@@ -59,7 +59,38 @@ export async function handleHistory(ctx: Context) {
     // ── Build message ──
     let reply = `📊 *Food History — Last 7 Days*\n\n`;
 
-    reply += `*🏆 Top Foods:*\n`;
+    // ── Ascii Charts: Calories & Protein by Day ──
+    const dailyTotals = new Map<string, { cals: number, prot: number }>();
+    // Initialize last 7 days to 0
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toLocaleDateString('en-US', { weekday: 'short' });
+      if (!dailyTotals.has(key)) dailyTotals.set(key, { cals: 0, prot: 0 });
+    }
+    
+    for (const meal of meals) {
+      const d = new Date(meal.loggedAt).toLocaleDateString('en-US', { weekday: 'short' });
+      if (dailyTotals.has(d)) {
+        const t = dailyTotals.get(d)!;
+        t.cals += meal.nutrition.calories;
+        t.prot += meal.nutrition.protein;
+      }
+    }
+
+    reply += `*📈 Calorie Trend*\n`;
+    const maxCals = Math.max(1, ...Array.from(dailyTotals.values()).map(v => v.cals));
+    for (const [day, totals] of dailyTotals.entries()) {
+      reply += `${day} ${generateBar(totals.cals, maxCals, 8)} ${Math.round(totals.cals)}\n`;
+    }
+    
+    reply += `\n*🥩 Protein Trend (g)*\n`;
+    const maxProt = Math.max(1, ...Array.from(dailyTotals.values()).map(v => v.prot));
+    for (const [day, totals] of dailyTotals.entries()) {
+      reply += `${day} ${generateBar(totals.prot, maxProt, 8)} ${Math.round(totals.prot)}\n`;
+    }
+
+    reply += `\n*🏆 Top Foods:*\n`;
     for (const [name, count] of topFoods) {
       reply += `  ${count}×  ${truncate(name, 30)}\n`;
     }
@@ -96,6 +127,11 @@ export async function handleHistory(ctx: Context) {
     await ctx.api.editMessageText(ctx.chat?.id as number, msg.message_id,
       'Failed to load history. Please try again.');
   }
+}
+
+function generateBar(value: number, max: number, length: number): string {
+  const filled = Math.round((value / max) * length);
+  return '█'.repeat(filled) + '░'.repeat(length - filled);
 }
 
 function truncate(s: string, max: number): string {

@@ -53,6 +53,22 @@ export interface MealLog {
   confidenceScore?: number; // 0-100
 }
 
+export interface WaterLog {
+  id: string;
+  userId: string;
+  amount_ml: number;
+  loggedAt: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  activityType: string;
+  durationMin: number;
+  caloriesBurned: number;
+  loggedAt: string;
+}
+
 export interface DailySummary {
   date: string; // YYYY-MM-DD
   totalCalories: number;
@@ -61,6 +77,9 @@ export interface DailySummary {
   totalFats: number;
   totalSugar?: number;
   totalSodium?: number;
+  waterAmount?: number;      // ml
+  caloriesBurned?: number;   // kcal
+  activities?: any[];        // array of tracked activities
   meals: MealLog[];
 }
 
