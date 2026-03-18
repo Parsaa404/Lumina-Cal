@@ -2,8 +2,6 @@ import { Context } from 'grammy';
 import { db } from '../services/db';
 import { generateMetabolicAdjustment } from '../services/nutrition/aiRecommendations';
 
-
-
 export async function handleWeight(ctx: Context) {
   const telegramUser = ctx.from;
   if (!telegramUser) return;
@@ -14,86 +12,96 @@ export async function handleWeight(ctx: Context) {
   // Parse weight from command: /weight 82.5
   const text = ctx.message?.text || '';
   const parts = text.trim().split(/\s+/);
-  const weightArg = parts[1] ? parseFloat(parts[1]) : null;
+  const weightKg = parts[1] ? parseFloat(parts[1]) : null;
 
-  if (!weightArg || isNaN(weightArg) || weightArg < 20 || weightArg > 500) {
-    await ctx.reply(
-      `⚖️ *Weekly Weight Check-in*\n\nLog your current weight to track progress and get adaptive calorie adjustments.\n\nUsage: \`/weight 82.5\``,
-      { parse_mode: 'Markdown' }
-    );
+  // No argument — show instructions
+  if (!weightKg || isNaN(weightKg) || weightKg < 20 || weightKg > 500) {
+    const history = await db.getWeightHistory(user.id);
+    const lastLog = history.length > 0 ? history[history.length - 1] : null;
+    let msg = `⚖️ *Weekly Weight Check-in*\n\n`;
+    if (lastLog) msg += `Last logged: *${lastLog.weight}kg*\n\n`;
+    msg += `Usage: \`/weight 82.5\``;
+    await ctx.reply(msg, { parse_mode: 'Markdown' });
     return;
   }
 
-  const logs = await db.getWeightHistory(user.id);
-  const tzOffset = new Date().getTimezoneOffset() * 60000;
-  // Get local string for comparison
-  const today = new Date(Date.now() - tzOffset).toISOString().split('T')[0];
-
-  // Don't duplicate on same day natively
-  const alreadyToday = logs.find(l => l.loggedAt.includes(today));
-  if (!alreadyToday) {
-    await db.logWeight(user.id, weightArg);
-    await db.updateUserProfile(telegramUser.id, { weight: weightArg });
-    logs.push({ weight: weightArg, loggedAt: new Date().toISOString() });
-  }
+  // Log the weight — also update users.weight for dashboard
+  await db.logWeight(user.id, weightKg);
+  await db.updateUserProfile(telegramUser.id, { weight: weightKg });
 
   const loadingMsg = await ctx.reply('🧠 Analyzing your weight trend...');
 
   try {
-    // Need at least 2 data points for adaptation
+    const logs = await db.getWeightHistory(user.id);
+
     if (logs.length < 2) {
-      await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id,
-        `✅ *Weight logged: ${weightArg}kg*\n\nLog again next week to get adaptive calorie recommendations!`,
-        { parse_mode: 'Markdown' });
-      return;
+      await ctx.api.editMessageText(
+        ctx.chat!.id,
+        loadingMsg.message_id,
+        `✅ *Weight logged: ${weightKg}kg*\n\nLog again next week to get adaptive calorie recommendations!`,
+        { parse_mode: 'Markdown' }
+      );
+    } else {
+      const prev = logs[logs.length - 2];
+      const curr = logs[logs.length - 1];
+      const weekChange = parseFloat((curr.weight - prev.weight).toFixed(1));
+
+      const adjustment = await generateMetabolicAdjustment({
+        fitnessGoal: user.fitnessGoal || 'healthy_lifestyle',
+        currentWeight: weightKg,
+        previousWeight: prev.weight,
+        weeklyChange: weekChange,
+        currentCalories: user.dailyCalorieGoal || 2000,
+        currentCarbs: user.dailyCarbsGoal || 200,
+      });
+
+      let msg = `⚖️ *Weekly Weight Check-in*\n\n`;
+      msg += `Current: *${weightKg}kg*\n`;
+      msg += `Last week: ${prev.weight}kg\n`;
+      msg += `Change: *${weekChange > 0 ? '+' : ''}${weekChange}kg*\n\n`;
+      msg += adjustment;
+
+      // ETA to target
+      if (user.targetWeight && weekChange !== 0) {
+        const remaining = user.targetWeight - weightKg;
+        const weeksToGoal = Math.abs(remaining / weekChange);
+        if (weeksToGoal > 0 && weeksToGoal < 200) {
+          const eta = new Date();
+          eta.setDate(eta.getDate() + Math.ceil(weeksToGoal) * 7);
+          const etaStr = eta.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          msg += `\n📅 *ETA to ${user.targetWeight}kg:* ~${etaStr} (${Math.ceil(weeksToGoal)} weeks)\n`;
+        }
+      }
+
+      await ctx.api.editMessageText(ctx.chat!.id, loadingMsg.message_id, msg, {
+        parse_mode: 'Markdown',
+      });
     }
 
-    const prev = logs[logs.length - 2];
-    const curr = logs[logs.length - 1];
-    const weekChange = parseFloat((curr.weight - prev.weight).toFixed(1));
-    const fitnessGoal = user.fitnessGoal || 'healthy_lifestyle';
-
-    // AI metabolic adjustment
-    const adjustment = await generateMetabolicAdjustment({
-      fitnessGoal,
-      currentWeight: weightArg,
-      previousWeight: prev.weight,
-      weeklyChange: weekChange,
-      currentCalories: user.dailyCalorieGoal || 2000,
-      currentCarbs: user.dailyCarbsGoal || 200,
-    });
-
-    let msg = `⚖️ *Weekly Weight Check-in*\n\n`;
-    msg += `Current: *${weightArg}kg*\n`;
-    msg += `Last week: ${prev.weight}kg\n`;
-    msg += `Change: *${weekChange > 0 ? '+' : ''}${weekChange}kg*\n\n`;
-    msg += adjustment;
-
-    await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id, msg, {
-      parse_mode: 'Markdown',
-    });
-
-    // Target Goal Achievement Check
-    if (user.targetWeight && user.fitnessGoal) {
-      let achieved = false;
-      if (user.fitnessGoal === 'weight_loss' && weightArg <= user.targetWeight) achieved = true;
-      else if ((user.fitnessGoal === 'muscle_building' || user.fitnessGoal.includes('gain')) && weightArg >= user.targetWeight) achieved = true;
-      else if (weightArg === user.targetWeight) achieved = true;
+    // ── Target weight achievement check ──
+    if (user.targetWeight) {
+      const goal = user.fitnessGoal || '';
+      const achieved =
+        (goal === 'weight_loss' && weightKg <= user.targetWeight) ||
+        (goal === 'muscle_building' && weightKg >= user.targetWeight) ||
+        weightKg === user.targetWeight;
 
       if (achieved) {
-        // Clear target weight from DB to prompt for a new one
+        // Clear the target so next open of dashboard shows "Not set"
         await db.updateUserGoals(telegramUser.id, { targetWeight: null as any });
-        
-        await ctx.reply(`🎉 *Goal Achieved!* 🎉\n\nCongratulations on reaching your target weight of *${user.targetWeight}kg*! ✅\n\nWhat is your next step? Set a new target weight limit using:\n\`/target [weight]\``, { parse_mode: 'Markdown' });
+        await ctx.reply(
+          `🎉 *Goal Achieved!*\n\nYou reached your target weight of *${user.targetWeight}kg*! ✅\n\nSet a new goal with:\n\`/target [weight]\``,
+          { parse_mode: 'Markdown' }
+        );
       }
     }
-
-    // If adjustments recommended, apply them to user goals
-    // (this would update Supabase in a production build)
-  } catch (error) {
-    console.error('Weight handler error:', error);
-    await ctx.api.editMessageText(ctx.chat?.id as number, loadingMsg.message_id,
-      `✅ Weight logged: ${weightArg}kg. Continue tracking next week for adaptive recommendations!`);
+  } catch (err) {
+    console.error('Weight handler error:', err);
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      loadingMsg.message_id,
+      `✅ Weight logged: ${weightKg}kg. Check again next week for adaptive recommendations!`
+    );
   }
 }
 

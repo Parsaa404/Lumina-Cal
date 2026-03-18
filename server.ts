@@ -26,24 +26,11 @@ async function startServer() {
       
       const user = await db.getUser(telegramId);
       if (!user) return res.status(404).json({ error: 'User not found' });
-      
-      const weightLogs = await db.getWeightHistory(user.id);
-      if (weightLogs.length > 0) {
-        user.weight = weightLogs[weightLogs.length - 1].weight;
-      } else {
-        user.weight = undefined;
-      }
-      
+      // users.weight is the single source of truth — kept updated by /weight command
       res.json(user);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
-  });
-
-  app.get('/api/test-user/:id', async (req, res) => {
-    const telegramId = Number(req.params.id);
-    const user = await db.getUser(telegramId);
-    res.json(user);
   });
 
   app.get('/api/summary', validateTelegramInitData, async (req, res) => {

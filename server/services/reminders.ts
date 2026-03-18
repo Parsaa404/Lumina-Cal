@@ -1,20 +1,13 @@
 import { Bot } from 'grammy';
-import { db } from './db';
-
-/**
- * Very simple cron alternative using setInterval.
- * Checks every hour to see if it should send reminders.
- */
+import { db, supabase } from './db';
 
 let checkInterval: ReturnType<typeof setInterval> | null = null;
-let lastReminderDateStr = '';
+let lastMorningDateStr = '';
+let lastEveningDateStr = '';
 
 export function startReminders(bot: Bot) {
-  // Check every hour (3600000 ms)
-  // For testing, we could check every minute (60000 ms), but keeping it 1h for prod.
-  checkInterval = setInterval(() => checkAndSendReminders(bot), 3600000);
-  
-  // Also run a check right away (but it will only send if conditions met and not already sent today)
+  // Check every 30 minutes
+  checkInterval = setInterval(() => checkAndSendReminders(bot), 30 * 60 * 1000);
   checkAndSendReminders(bot);
 }
 
@@ -25,56 +18,98 @@ export function stopReminders() {
   }
 }
 
+async function getActiveUsers() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, telegramId, firstName, streak, dailyCalorieGoal, dailyProteinGoal, targetWeight, weight');
+  if (error) { console.error('[Reminders] Failed to fetch users:', error); return []; }
+  return data || [];
+}
+
 async function checkAndSendReminders(bot: Bot) {
   const now = new Date();
   const hour = now.getHours();
-  
-  // We only send the evening reminder at 8 PM (20:00) window.
-  // The interval checks every hour.
-  if (hour !== 20) return;
-
   const todayStr = now.toISOString().split('T')[0];
-  
-  // Prevent sending multiple times the same day if the server restarts or intervals shift
-  if (lastReminderDateStr === todayStr) return;
-  
-  try {
-    // Get all users who have interacted with the bot
-    // Since we don't have a direct "getAllUsers" method in our db.ts, 
-    // we would need a raw query to fetch all user ids.
-    // Assuming db.ts is modified, or we can use the raw db instance here:
-    
-    // Instead of querying all users (which could be huge), for an MVP we can fetch active users.
-    // Let's add an raw SQLite query here safely:
-    const stmt = (db as any).db.prepare('SELECT id, telegram_id, fast_streak FROM users');
-    const users = stmt.all();
 
-    for (const user of users) {
-      // Check if user logged any meals today
-      const todaySummary = await db.getDailySummary(user.id, todayStr);
-      
-      const hasMeals = todaySummary && todaySummary.meals.length > 0;
-      
-      if (!hasMeals) {
-        let msg = `⏰ *Evening Reminder*\n\nYou haven't logged any meals today!`;
-        
-        if (user.fast_streak > 2) {
-          msg += ` Don't break your ${user.fast_streak}-day tracking streak 🔥`;
-        }
-        
-        msg += `\n\nTake 30 seconds to snap a photo of your dinner or use /quickadd to instantly log your usuals.`;
-        
+  try {
+    const users = await getActiveUsers();
+
+    // ── 8 AM: Morning Briefing ───────────────────────────────
+    if (hour === 8 && lastMorningDateStr !== todayStr) {
+      lastMorningDateStr = todayStr;
+
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+      for (const user of users) {
         try {
-          await bot.api.sendMessage(user.telegram_id, msg, { parse_mode: 'Markdown' });
-        } catch (err) {
-          console.error(`Failed to send reminder to user ${user.telegram_id}`, err);
-        }
+          const yesterdaySummary = await db.getDailySummary(user.id, yesterday);
+          const yCal  = Math.round(yesterdaySummary?.totalCalories || 0);
+          const yProt = Math.round(yesterdaySummary?.totalProtein || 0);
+
+          let msg = `🌅 *Good morning, ${user.firstName}!*\n\n`;
+
+          if (yCal > 0) {
+            msg += `*Yesterday's summary:*\n`;
+            msg += `🔥 ${yCal} kcal`;
+            if (user.dailyCalorieGoal) {
+              const diff = yCal - user.dailyCalorieGoal;
+              msg += diff > 0 ? ` (${diff} over)` : ` (${Math.abs(diff)} under goal)`;
+            }
+            msg += `\n`;
+            msg += `🥩 ${yProt}g protein\n`;
+          }
+
+          if (user.streak && user.streak > 1) {
+            msg += `\n🔥 You're on a *${user.streak}-day streak!*`;
+          }
+
+          msg += `\n\n*Today's goal: ${user.dailyCalorieGoal || 2000} kcal*\nStart strong! Log your breakfast 🍳`;
+
+          await bot.api.sendMessage(user.telegramId, msg, { parse_mode: 'Markdown' });
+        } catch { /* user may have blocked bot */ }
       }
+
+      console.log(`[Reminders] Morning briefings sent for ${todayStr}`);
     }
 
-    lastReminderDateStr = todayStr;
-    console.log(`[Reminders] Sent evening reminders for ${todayStr}.`);
+    // ── 8 PM: Evening reminder if no meals logged ────────────
+    if (hour === 20 && lastEveningDateStr !== todayStr) {
+      lastEveningDateStr = todayStr;
+
+      for (const user of users) {
+        try {
+          const summary = await db.getDailySummary(user.id, todayStr);
+          const hasMeals = summary && summary.meals.length > 0;
+
+          if (!hasMeals) {
+            let msg = `⏰ *Evening Check-in*\n\nHey ${user.firstName}! You haven't logged any meals today.`;
+            if (user.streak && user.streak > 2) {
+              msg += ` Don't break your *${user.streak}-day* streak 🔥`;
+            }
+            msg += `\n\nSnap a dinner photo or use /quickadd for your usual foods!`;
+            await bot.api.sendMessage(user.telegramId, msg, { parse_mode: 'Markdown' });
+          } else {
+            // They logged meals — give a summary
+            const totalCal = Math.round(summary.totalCalories);
+            const goal = user.dailyCalorieGoal || 2000;
+            const remaining = goal - totalCal;
+            if (remaining > 100) {
+              let msg = `🌙 *Evening Summary*\n\n`;
+              msg += `You've eaten *${totalCal} kcal* today.\n`;
+              msg += `You still have *${Math.round(remaining)} kcal* budget left.\n\n`;
+              msg += remaining > 400
+                ? `Consider a proper dinner if you haven't had one! 🍽️`
+                : `A light snack like fruit or yogurt would be perfect 🍎`;
+              await bot.api.sendMessage(user.telegramId, msg, { parse_mode: 'Markdown' });
+            }
+          }
+        } catch { /* skip */ }
+      }
+
+      console.log(`[Reminders] Evening reminders sent for ${todayStr}`);
+    }
+
   } catch (error) {
-    console.error('[Reminders] Error checking reminders:', error);
+    console.error('[Reminders] Error:', error);
   }
 }

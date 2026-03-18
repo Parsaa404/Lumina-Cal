@@ -9,13 +9,15 @@ import { handleWater, handleWaterCallback } from './handlers/hydrationHandler';
 import { handleWeight } from './handlers/weightHandler';
 import { handleGroceries, handlePlan } from './handlers/planningHandler';
 import { handleExport } from './handlers/exportHandler';
-import { handleActivity } from './handlers/activityHandler';
+import { handleActivity, handleActivityText, handleActivityCallback } from './handlers/activityHandler';
 import { handleHistory } from './handlers/historyHandler';
 import { handleAsk } from './handlers/askHandler';
 import { handleQuickAdd, handleQuickAddCallback } from './handlers/quickAddHandler';
 import { handleRecipe } from './handlers/recipeHandler';
 import { handlePhotoCookingCallback, handlePhotoSeasoningCallback } from './handlers/photoQAHandler';
 import { handleTarget } from './handlers/targetHandler';
+import { handleTrend } from './handlers/trendHandler';
+import { handleScan, handleScanPhoto, handleScanCallback, scanPendingUsers } from './handlers/scanHandler';
 
 export function setupBot(token: string): Bot {
   const bot = new Bot(token);
@@ -35,6 +37,11 @@ export function setupBot(token: string): Bot {
   bot.command('quickadd', handleQuickAdd);
   bot.command('recipe',   handleRecipe);
   bot.command('target',   handleTarget);
+  bot.command('trend',    handleTrend);
+  bot.command('scan',     async (ctx) => {
+    scanPendingUsers.add(ctx.from!.id);
+    await handleScan(ctx);
+  });
 
   // ── Inline Callbacks ──────────────────────────────────────
   bot.on('callback_query:data', async (ctx) => {
@@ -48,6 +55,16 @@ export function setupBot(token: string): Bot {
     // Photo Q&A: seasoning
     if (data.startsWith('photo_season_')) {
       await handlePhotoSeasoningCallback(ctx);
+      return;
+    }
+    // Scan callback
+    if (data.startsWith('scan_')) {
+      await handleScanCallback(ctx);
+      return;
+    }
+    // Activity multi-step callbacks
+    if (data.startsWith('act_')) {
+      await handleActivityCallback(ctx);
       return;
     }
     // Quick Add food tap
@@ -74,8 +91,15 @@ export function setupBot(token: string): Bot {
   });
 
   // ── Message Handlers ──────────────────────────────────────
-  bot.on('message:photo', handlePhoto);
-  bot.on('message:text',  handleText);
+  bot.on('message:photo', async (ctx) => {
+    const scanned = await handleScanPhoto(ctx);
+    if (!scanned) await handlePhoto(ctx);
+  });
+  bot.on('message:text', async (ctx) => {
+    // Activity multi-step text responses take priority
+    const handled = await handleActivityText(ctx);
+    if (!handled) await handleText(ctx);
+  });
 
   // ── Error Handler ─────────────────────────────────────────
   bot.catch((err) => {

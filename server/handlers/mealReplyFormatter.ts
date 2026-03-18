@@ -52,6 +52,34 @@ export function formatMealPreview(analysis: VisionAnalysisResult): string {
   return msg;
 }
 
+// ─── Progress Bar Builder ─────────────────────────────────────
+export function buildProgressBar(current: number, goal: number, length = 10): string {
+  const pct = Math.min(current / goal, 1);
+  const filled = Math.round(pct * length);
+  const bar = '█'.repeat(filled) + '░'.repeat(length - filled);
+  const over = current > goal;
+  return `${bar} ${Math.round(current)}/${goal}${over ? ' ⚠️' : ''}`;
+}
+
+// ─── Smart Snack Suggestion ────────────────────────────────────
+function getSnackSuggestion(summary: DailySummary, user: User): string | null {
+  if (!user.dailyCalorieGoal) return null;
+  const calLeft  = user.dailyCalorieGoal - summary.totalCalories;
+  const protLeft = user.dailyProteinGoal ? (user.dailyProteinGoal - summary.totalProtein) : 0;
+  if (calLeft < 100) return null; // not much room left
+
+  if (protLeft > 30) {
+    return `💡 *Snack Idea:* You need ~${Math.round(protLeft)}g more protein.\nTry: Greek yogurt (17g) · Cottage cheese (14g) · Boiled eggs (12g) · Protein shake`;
+  }
+  if (calLeft > 400 && summary.totalFats < (user.dailyFatsGoal || 65) * 0.5) {
+    return `💡 *Snack Idea:* Healthy fats would hit your macros nicely.\nTry: Mixed nuts (1 handful) · Avocado on rice cake · Cheese slice`;
+  }
+  if (calLeft > 200) {
+    return `💡 *Remaining budget: ${Math.round(calLeft)} kcal.*\nTry: Fruit + nuts · Hummus + veggies · Small yogurt`;
+  }
+  return null;
+}
+
 // ─── Confirmed (after user clicks Log Meal) ───────────────────
 export function formatMealConfirmed(
   analysis: VisionAnalysisResult,
@@ -67,36 +95,32 @@ export function formatMealConfirmed(
     msg += `\nMeal Score: *${analysis.mealScore.overall} / 10*\n`;
   }
 
-  // Daily Progress
+  // Visual Progress Bars
   if (summary && user.dailyCalorieGoal) {
     const totalCal = summary.totalCalories;
     const calGoal  = user.dailyCalorieGoal;
-    const remaining = calGoal - totalCal;
-    const percent   = Math.round((totalCal / calGoal) * 100);
 
-    msg += `\n*Daily Progress:* ${Math.round(totalCal)} / ${calGoal} kcal (${percent}%)\n`;
+    msg += `\n*Daily Progress:*\n`;
+    msg += `🔥 Cal  ${buildProgressBar(totalCal, calGoal)}\n`;
+    if (user.dailyProteinGoal)
+      msg += `🥩 Pro  ${buildProgressBar(summary.totalProtein, user.dailyProteinGoal)}\n`;
+    if (user.dailyCarbsGoal)
+      msg += `🍞 Carb ${buildProgressBar(summary.totalCarbs, user.dailyCarbsGoal)}\n`;
+    if (user.dailyFatsGoal)
+      msg += `🥑 Fat  ${buildProgressBar(summary.totalFats, user.dailyFatsGoal)}\n`;
 
     if (totalCal > calGoal) {
-      const over = Math.round(totalCal - calGoal);
-      msg += `\n🔴 *Over limit by ${over} kcal*\n`;
-      msg += `• Drink plenty of water\n• Go for a 20-30 min walk\n• Skip evening snacks\n`;
-    } else if (remaining > 0 && remaining < 300) {
-      msg += `⚠️ Only ${Math.round(remaining)} kcal remaining — choose wisely!\n`;
+      msg += `\n🔴 *Over limit by ${Math.round(totalCal - calGoal)} kcal*\n`;
+      msg += `• Drink water · take a 20-min walk · skip evening snacks\n`;
     }
 
     if (summary.totalSugar && summary.totalSugar > 35) {
-      msg += `\n⚠️ *High Sugar Today:* ${Math.round(summary.totalSugar)}g (max 35g)\n`;
-      msg += `• Replace soda with sparkling water\n• Choose dark chocolate over sweets\n`;
+      msg += `\n⚠️ High Sugar: ${Math.round(summary.totalSugar)}g today (max 35g)\n`;
     }
 
-    if (user.dailyProteinGoal) {
-      const proteinPct = summary.totalProtein / user.dailyProteinGoal;
-      const calPct     = totalCal / calGoal;
-      if (proteinPct < 0.5 && calPct > 0.6) {
-        msg += `\n⚠️ *Low Protein:* ${Math.round(summary.totalProtein)}g / ${user.dailyProteinGoal}g\n`;
-        msg += `• Add eggs, Greek yogurt, or chicken breast\n`;
-      }
-    }
+    // Smart snack suggestion
+    const snack = getSnackSuggestion(summary, user);
+    if (snack) msg += `\n${snack}\n`;
   }
 
   const badge = getStreakBadge(streak);

@@ -43,6 +43,7 @@ export const db = {
       .from('users')
       .update(goals)
       .eq('telegramId', telegramId);
+    if (error) console.error('updateUserGoals error:', error);
     return !error;
   },
 
@@ -257,13 +258,13 @@ export const db = {
   },
 
   async getWeightHistory(userId: string): Promise<{ weight: number; loggedAt: string }[]> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('weight_logs')
       .select('weight, loggedAt')
       .eq('userId', userId)
       .order('loggedAt', { ascending: true })
       .limit(12);
-    
-    return data || [];
+    if (error) console.error('Supabase getWeightHistory error:', error);
+    return (data || []) as { weight: number; loggedAt: string }[];
   }
 };

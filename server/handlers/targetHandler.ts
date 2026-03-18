@@ -12,16 +12,24 @@ export async function handleTarget(ctx: Context) {
   const parts = text.trim().split(/\s+/);
   const targetWeight = parts[1] ? parseFloat(parts[1]) : null;
 
+  // No argument — show current target
   if (!targetWeight || isNaN(targetWeight) || targetWeight < 20 || targetWeight > 500) {
     if (user.targetWeight) {
-        await ctx.reply(`🎯 Your current target weight is *${user.targetWeight}kg*.\n\nTo change it, use: \`/target 75\``, { parse_mode: 'Markdown' });
+      await ctx.reply(
+        `🎯 Current target: *${user.targetWeight}kg*\n\nChange it with: \`/target 75\``,
+        { parse_mode: 'Markdown' }
+      );
     } else {
-        await ctx.reply(`🎯 *Set Target Weight*\n\nUsage: \`/target 75\``, { parse_mode: 'Markdown' });
+      await ctx.reply(`🎯 *Set a target weight*\n\nUsage: \`/target 75\``, { parse_mode: 'Markdown' });
     }
     return;
   }
 
-  await db.updateUserGoals(telegramUser.id, { targetWeight });
+  const saved = await db.updateUserGoals(telegramUser.id, { targetWeight });
 
-  await ctx.reply(`🎯 Target weight set to *${targetWeight}kg*!`, { parse_mode: 'Markdown' });
+  if (saved) {
+    await ctx.reply(`🎯 Target weight set to *${targetWeight}kg*!\n\nWhen you reach this weight, I'll notify you automatically. Keep tracking with \`/weight\``, { parse_mode: 'Markdown' });
+  } else {
+    await ctx.reply(`❌ Failed to save target weight. Please try again.`);
+  }
 }
