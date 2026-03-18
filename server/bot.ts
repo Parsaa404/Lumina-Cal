@@ -18,6 +18,14 @@ import { handlePhotoCookingCallback, handlePhotoSeasoningCallback } from './hand
 import { handleTarget } from './handlers/targetHandler';
 import { handleTrend } from './handlers/trendHandler';
 import { handleScan, handleScanPhoto, handleScanCallback, scanPendingUsers } from './handlers/scanHandler';
+import { handleFast } from './handlers/fastHandler';
+import { handleProgress, handleProgressPhoto } from './handlers/progressHandler';
+import { handleCoach } from './handlers/coachHandler';
+import { handleRepeat, handleRepeatCallback } from './handlers/repeatHandler';
+import { handlePredict } from './handlers/predictHandler';
+import { handleReport } from './handlers/reportHandler';
+import { handleBadges } from './handlers/badgesHandler';
+import { handleCommands } from './handlers/commandsHandler';
 
 export function setupBot(token: string): Bot {
   const bot = new Bot(token);
@@ -42,6 +50,32 @@ export function setupBot(token: string): Bot {
     scanPendingUsers.add(ctx.from!.id);
     await handleScan(ctx);
   });
+  bot.command('fast',     handleFast);
+  bot.command('progress', handleProgress);
+  bot.command('coach',    handleCoach);
+  bot.command('repeat',   handleRepeat);
+  bot.command('predict',  handlePredict);
+  bot.command('report',   handleReport);
+  bot.command('badges',   handleBadges);
+  bot.command('commands', handleCommands);
+
+  // Set Telegram autocomplete menu
+  bot.api.setMyCommands([
+    { command: 'start', description: 'Start & Settings' },
+    { command: 'water', description: 'Log Water' },
+    { command: 'weight', description: 'Log Weight & ETA' },
+    { command: 'activity', description: 'Log Exercise' },
+    { command: 'scan', description: 'Barcode Scanner' },
+    { command: 'fast', description: 'Fasting Tracker' },
+    { command: 'coach', description: 'AI Weekly Coach' },
+    { command: 'repeat', description: 'Repeat a past meal' },
+    { command: 'quickadd', description: 'Quick-add top foods' },
+    { command: 'progress', description: 'Body photo gallery' },
+    { command: 'trend', description: 'Weight trend chart' },
+    { command: 'badges', description: 'Your achievements' },
+    { command: 'report', description: 'Monthly report' },
+    { command: 'commands', description: 'List ALL commands' },
+  ]).catch(console.error);
 
   // ── Inline Callbacks ──────────────────────────────────────
   bot.on('callback_query:data', async (ctx) => {
@@ -60,6 +94,11 @@ export function setupBot(token: string): Bot {
     // Scan callback
     if (data.startsWith('scan_')) {
       await handleScanCallback(ctx);
+      return;
+    }
+    // Repeat meal callback
+    if (data.startsWith('repeat_log_')) {
+      await handleRepeatCallback(ctx);
       return;
     }
     // Activity multi-step callbacks
@@ -92,6 +131,9 @@ export function setupBot(token: string): Bot {
 
   // ── Message Handlers ──────────────────────────────────────
   bot.on('message:photo', async (ctx) => {
+    // Priority order: progress photo → barcode scan → food analysis
+    const isProgress = await handleProgressPhoto(ctx);
+    if (isProgress) return;
     const scanned = await handleScanPhoto(ctx);
     if (!scanned) await handlePhoto(ctx);
   });

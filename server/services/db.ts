@@ -266,5 +266,17 @@ export const db = {
       .limit(12);
     if (error) console.error('Supabase getWeightHistory error:', error);
     return (data || []) as { weight: number; loggedAt: string }[];
-  }
+  },
+
+  async getWeeklyMeals(userId: string): Promise<MealLog[]> {
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { data, error } = await supabase
+      .from('meals')
+      .select('*')
+      .eq('userId', userId)
+      .gte('loggedAt', since)
+      .order('loggedAt', { ascending: false });
+    if (error) console.error('Supabase getWeeklyMeals error:', error);
+    return (data || []) as MealLog[];
+  },
 };
