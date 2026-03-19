@@ -2,13 +2,12 @@ import { useAppStore } from '../store';
 import { MealCard } from '../components/MealCard';
 import { motion } from 'motion/react';
 import { Activity, Flame, Utensils, Heart, AlertTriangle, TrendingUp, Droplets, Footprints, Star, Trophy, Zap, Scale } from 'lucide-react';
+import { getTelegramData } from '../lib/telegram';
 
 const GOAL_LABELS: Record<string, string> = {
   muscle_building: '💪 Muscle Gain',
-  weight_loss: '🔥 Fat Loss',
-  maintain: '⚖️ Maintain Weight',
-  recomposition: '💪 Recomposition',
-  healthy_lifestyle: '🥗 Healthy Lifestyle',
+  weight_loss: '🔥 Weight Loss',
+  maintenance: '⚖️ Maintenance',
 };
 
 function getBMICategory(bmi: number): { label: string; color: string; bg: string } {
@@ -20,13 +19,11 @@ function getBMICategory(bmi: number): { label: string; color: string; bg: string
 
 function getPBFCategory(pbf: number, gender?: string): { label: string; color: string } {
   if (gender === 'male') {
-    if (pbf < 6) return { label: 'Essential', color: 'text-red-500' };
     if (pbf < 14) return { label: 'Athletic', color: 'text-blue-500' };
     if (pbf < 18) return { label: 'Fit', color: 'text-emerald-500' };
     if (pbf < 25) return { label: 'Average', color: 'text-amber-500' };
     return { label: 'Above Avg', color: 'text-red-500' };
   } else {
-    if (pbf < 14) return { label: 'Essential', color: 'text-red-500' };
     if (pbf < 21) return { label: 'Athletic', color: 'text-blue-500' };
     if (pbf < 25) return { label: 'Fit', color: 'text-emerald-500' };
     if (pbf < 32) return { label: 'Average', color: 'text-amber-500' };
@@ -35,7 +32,27 @@ function getPBFCategory(pbf: number, gender?: string): { label: string; color: s
 }
 
 export function Dashboard() {
-  const { user, summary, isLoading } = useAppStore();
+  const { user, summary, isLoading, currentDate, fetchSummaryForDate } = useAppStore();
+
+  const handleDateClick = (dateStr: string) => {
+    if (dateStr === currentDate) return;
+    const tgData = getTelegramData();
+    const initData = tgData?.initData || '';
+    fetchSummaryForDate(dateStr, initData);
+  };
+
+  // Generate last 7 days
+  const recentDays = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d;
+  });
+
+  // Calculate if the selected date is 'Today'
+  const isToday = currentDate === new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  
+  // Format the header date display
+  const displayDateObj = new Date(currentDate);
 
   if (isLoading) {
     return (
@@ -89,9 +106,9 @@ export function Dashboard() {
       {/* Header */}
       <header className="flex justify-between items-center mb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Today</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{isToday ? 'Today' : displayDateObj.toLocaleDateString('en-US', { weekday: 'long' })}</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+            {displayDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -107,6 +124,35 @@ export function Dashboard() {
           </div>
         </div>
       </header>
+
+      {/* Date Selector Row */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide snap-x" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+        {recentDays.map((dateObj, i) => {
+          // Adjust for local timezone offset just like we do for fetching
+          const tzOffset = dateObj.getTimezoneOffset() * 60000;
+          const dateStr = new Date(dateObj.getTime() - tzOffset).toISOString().split('T')[0];
+          
+          const isSelected = dateStr === currentDate;
+          return (
+            <button
+              key={dateStr}
+              onClick={() => handleDateClick(dateStr)}
+              className={`snap-center flex-shrink-0 flex flex-col items-center justify-center w-[52px] h-[64px] rounded-2xl transition-all ${
+                isSelected 
+                  ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-md ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-black' 
+                  : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800'
+              }`}
+            >
+              <span className={`text-[11px] font-medium uppercase tracking-wider mb-1 ${isSelected ? 'opacity-90' : 'opacity-70'}`}>
+                {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
+              </span>
+              <span className={`text-lg font-bold ${isSelected ? '' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                {dateObj.getDate()}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Body Profile Card */}
       {user.bmi && (
