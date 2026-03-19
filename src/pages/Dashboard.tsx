@@ -119,8 +119,8 @@ export function Dashboard() {
         </div>
       </header>
 
-      {/* Date Selector (Minimal Pills) */}
-      <div className="flex gap-2.5 overflow-x-auto pb-4 mb-3 scrollbar-hide snap-x" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+      {/* Date Selector (Non-scrollable, fits on screen) */}
+      <div className="flex justify-between w-full gap-1 mb-6">
         {recentDays.map((dateObj) => {
           const tzOffset = dateObj.getTimezoneOffset() * 60000;
           const dateStr = new Date(dateObj.getTime() - tzOffset).toISOString().split('T')[0];
@@ -130,16 +130,16 @@ export function Dashboard() {
             <button
               key={dateStr}
               onClick={() => handleDateClick(dateStr)}
-              className={`snap-center flex-shrink-0 flex flex-col items-center justify-center w-[46px] h-[60px] rounded-[18px] outline-none transition-all duration-200 ${
+              className={`flex-1 flex flex-col items-center justify-center aspect-[4/5] max-w-[48px] rounded-[16px] outline-none transition-all duration-200 ${
                 isSelected 
                   ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-md scale-105' 
                   : 'bg-zinc-100/80 dark:bg-zinc-800/40 text-zinc-400 dark:text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800/80'
               }`}
             >
-              <span className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${isSelected ? 'opacity-90' : ''}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${isSelected ? 'opacity-90' : ''}`}>
                 {dateObj.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0)}
               </span>
-              <span className="text-[17px] font-bold tracking-tight">
+              <span className={`text-[15px] font-extrabold tracking-tight ${isSelected ? '' : 'text-zinc-700 dark:text-zinc-300'}`}>
                 {dateObj.getDate()}
               </span>
             </button>
