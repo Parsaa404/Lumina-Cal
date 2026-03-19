@@ -245,6 +245,10 @@ export const db = {
       .lte('loggedAt', endDate.toISOString())
       .order('loggedAt', { ascending: false });
 
+    if (error) {
+      console.error('Supabase getWeeklyMeals error:', error);
+    }
+    
     if (error || !data) return [];
     return data as MealLog[];
   },
@@ -268,15 +272,4 @@ export const db = {
     return (data || []) as { weight: number; loggedAt: string }[];
   },
 
-  async getWeeklyMeals(userId: string): Promise<MealLog[]> {
-    const since = new Date(Date.now() - 7 * 86400000).toISOString();
-    const { data, error } = await supabase
-      .from('meals')
-      .select('*')
-      .eq('userId', userId)
-      .gte('loggedAt', since)
-      .order('loggedAt', { ascending: false });
-    if (error) console.error('Supabase getWeeklyMeals error:', error);
-    return (data || []) as MealLog[];
-  },
 };
